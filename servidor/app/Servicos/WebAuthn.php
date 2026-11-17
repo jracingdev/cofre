@@ -154,6 +154,7 @@ final class WebAuthn
     /** @return array<string, mixed> */
     private function guardar(CofreRegistro $cofre, string $tipo, object $opcoes): array
     {
+        DB::table('desafios_webauthn')->where('cofre_id', $cofre->id)->where('expira_em', '<', now())->delete();
         $id = (string) Str::uuid();
         $json = $this->serializer->serialize($opcoes, 'json');
         DB::table('desafios_webauthn')->insert([

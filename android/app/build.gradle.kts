@@ -17,10 +17,32 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    val lojaRelease = System.getenv("BROQUEL_KEYSTORE")
+    signingConfigs {
+        if (!lojaRelease.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(lojaRelease)
+                storePassword = System.getenv("BROQUEL_KEYSTORE_SENHA")
+                keyAlias = System.getenv("BROQUEL_KEY_ALIAS") ?: "broquel"
+                keyPassword = System.getenv("BROQUEL_KEY_SENHA")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (!lojaRelease.isNullOrBlank()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
+    }
+
+    lint {
+        abortOnError = true
+        checkReleaseBuilds = true
     }
 
     compileOptions {
@@ -48,7 +70,7 @@ android {
 dependencies {
     implementation("com.goterl:lazysodium-android:5.1.0@aar")
     implementation("net.java.dev.jna:jna:5.14.0@aar")
-    implementation("org.json:json:20240303")
+    implementation("org.json:json:20260719")
     implementation(platform("androidx.compose:compose-bom:2024.10.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")

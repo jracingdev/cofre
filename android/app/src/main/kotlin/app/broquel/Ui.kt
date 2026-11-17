@@ -206,7 +206,8 @@ private fun autenticar(activity: FragmentActivity, cifra: Cipher, aoSucesso: (Ci
         ContextCompat.getMainExecutor(activity),
         object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                aoSucesso(result.cryptoObject?.cipher ?: cifra)
+                val pronta = result.cryptoObject?.cipher ?: return
+                aoSucesso(pronta)
             }
         },
     )
@@ -215,6 +216,5 @@ private fun autenticar(activity: FragmentActivity, cifra: Cipher, aoSucesso: (Ci
         .setSubtitle("Confirme para proteger a chave do cofre")
         .setNegativeButtonText("Cancelar")
         .build()
-    runCatching { prompt.authenticate(info, BiometricPrompt.CryptoObject(cifra)) }
-        .onFailure { prompt.authenticate(info) }
+    prompt.authenticate(info, BiometricPrompt.CryptoObject(cifra))
 }

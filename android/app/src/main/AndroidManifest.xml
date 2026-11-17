@@ -7,6 +7,8 @@
     <application
         android:name=".BroquelAplicacao"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/extracao"
+        android:fullBackupContent="@xml/backup"
         android:icon="@mipmap/ic_launcher"
         android:label="Broquel"
         android:networkSecurityConfig="@xml/rede"

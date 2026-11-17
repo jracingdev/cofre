@@ -165,6 +165,28 @@ location /app/ {
 
 No celular, o identificador de 32 caracteres hexadecimais aparece nos ajustes e na tela do kit. No site, cole esse identificador em "Abrir cofre existente" e use a mesma senha mestra. O que for criado num lado aparece no outro depois de sincronizar.
 
+## Aplicativo Android, versão de release
+
+O CI publica o APK de debug, que ainda aceita HTTP para testar um servidor local. A versão de release recusa HTTP, liga o R8 e não entra em backup da nuvem nem na transferência do aparelho.
+
+Para assinar de verdade, crie a loja fora do repositório e não a envie ao Git:
+
+```sh
+keytool -genkeypair -keystore broquel.keystore -alias broquel -keyalg RSA -keysize 3072 -validity 3650
+```
+
+Guarde a senha fora do Git. Na hora de montar:
+
+```sh
+export BROQUEL_KEYSTORE=/caminho/broquel.keystore
+export BROQUEL_KEYSTORE_SENHA='a senha da loja'
+export BROQUEL_KEY_ALIAS=broquel
+export BROQUEL_KEY_SENHA='a senha da chave'
+cd android && ./gradlew :app:assembleRelease
+```
+
+O APK sai em `android/app/build/outputs/apk/release/`. Sem essas variáveis o Gradle ainda gera o pacote ofuscado, mas sem assinatura de publicação. Não use o APK de debug no dia a dia: ele é depurável e aceita endereço sem HTTPS.
+
 ## aaPanel
 
 O caminho é o mesmo, com os cliques do painel:

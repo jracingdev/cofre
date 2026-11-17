@@ -138,7 +138,9 @@ class MotorCripto(val sodium: LazySodium) {
         if (segredo.size != 32) throw ErroCripto("kit_invalido", "Kit de recuperação inválido.")
         val soma = checksum(segredo)
         val encoder = Base64.getUrlEncoder().withoutPadding()
-        return PREFIXO_KIT + encoder.encodeToString(segredo) + "." + encoder.encodeToString(soma)
+        val texto = PREFIXO_KIT + encoder.encodeToString(segredo) + "." + encoder.encodeToString(soma)
+        Arrays.fill(soma, 0)
+        return texto
     }
 
     fun decodificarKit(texto: String): ByteArray {
@@ -157,7 +159,12 @@ class MotorCripto(val sodium: LazySodium) {
         } catch (_: IllegalArgumentException) {
             throw ErroCripto("kit_invalido", "Kit de recuperação inválido.")
         }
-        if (segredo.size != 32 || informado.size != 4 || !checksum(segredo).contentEquals(informado)) {
+        val soma = checksum(segredo)
+        val confere = segredo.size == 32 && informado.size == 4 && segredosIguais(sodium, soma, informado)
+        Arrays.fill(soma, 0)
+        Arrays.fill(informado, 0)
+        if (!confere) {
+            Arrays.fill(segredo, 0)
             throw ErroCripto("kit_invalido", "O kit de recuperação não confere.")
         }
         return segredo
@@ -169,7 +176,9 @@ class MotorCripto(val sodium: LazySodium) {
         if (!sodium.cryptoGenericHash(hash, 16, mensagem, mensagem.size.toLong())) {
             throw ErroCripto("formato_invalido", "Falha no checksum do kit.")
         }
-        return hash.copyOf(4)
+        val soma = hash.copyOf(4)
+        Arrays.fill(hash, 0)
+        return soma
     }
 
     private fun derivar(senha: ByteArray, sal: ByteArray, opslimit: Int, memlimit: Long): ByteArray {
@@ -186,7 +195,7 @@ class MotorCripto(val sodium: LazySodium) {
         val chave = segredo.copyOfRange(0, 32)
         val sk = segredo.copyOfRange(32, 96)
         val pk = ByteArray(32)
-        if (!sodium.cryptoSignEd25519SkToPk(pk, sk) || !pk.contentEquals(cab.pk)) {
+        if (!sodium.cryptoSignEd25519SkToPk(pk, sk) || !segredosIguais(sodium, pk, cab.pk)) {
             throw ErroCripto("autenticacao_falhou", "Não foi possível abrir o cofre.")
         }
         Arrays.fill(segredo, 0)
@@ -360,6 +369,11 @@ private fun abrirQuadro(quadro: ByteArray): ByteArray {
         if (quadro[i] != 0.toByte()) throw ErroCripto("formato_invalido", "Preenchimento do item não é canônico.")
     }
     return quadro.copyOfRange(4, 4 + n)
+}
+
+internal fun segredosIguais(sodium: LazySodium, a: ByteArray, b: ByteArray): Boolean {
+    if (a.size != b.size) return false
+    return sodium.getSodium().sodium_memcmp(a, b, a.size) == 0
 }
 
 internal fun validarParametros(opslimit: Int, memlimit: Long, criacao: Boolean) {

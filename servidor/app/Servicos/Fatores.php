@@ -134,6 +134,7 @@ final class Fatores
         }
         $totp = TOTP::create($segredo);
 
-        return $totp->verify($codigo, null, 29);
+        // 15 segundos, abaixo do passo de 30. Aceita o relógio na borda, não o passo inteiro dos dois lados.
+        return $totp->verify($codigo, null, 15);
     }
 }

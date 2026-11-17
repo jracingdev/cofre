@@ -18,7 +18,7 @@ O servidor, o aplicativo e o cofre web já estão no repositório. A etapa que f
 2. **Servidor Laravel (PHP 8.2).** Feito, em `servidor/`. Sincronização, login por desafio, segundo fator e limites. A instalação no VPS está em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md). O servidor não decifra nada.
 3. **Aplicativo Android (Kotlin).** Feito, em `android/`. Nome Broquel, ícone do escudo longo azul, gerador, cofre offline cifrado e sincronização com o servidor. O APK de debug sai como artefato do CI.
 4. **Cofre web.** Feito, em `web/`. A cifra fica no navegador, com a biblioteca `packages/cripto`. O build publicado fica em `servidor/public/app/` e abre em `/app/`.
-5. **Revisão de segurança.** Leitura independente do formato, da biblioteca, do servidor e dos clientes, atrás de vazamento, troca de versão e erro de implementação.
+5. **Revisão de segurança.** Feita em [docs/AUDITORIA.md](docs/AUDITORIA.md). O que dava para corrigir no código foi corrigido. Uma auditoria externa continua recomendada.
 
 ## O que a gente assume que o atacante pode fazer
 

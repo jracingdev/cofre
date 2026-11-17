@@ -115,6 +115,36 @@ final class SincronizacaoTest extends TestCase
         $this->postJson('/v1/auth/desafio', ['cofre_id' => $id])->assertStatus(429);
     }
 
+    public function test_token_de_um_cofre_nao_le_nem_grava_o_outro(): void
+    {
+        [, $tokenA] = $this->entrar();
+        [, $tokenB, $criptoB] = $this->entrar();
+        $item = $this->item($criptoB, 1, false, 'segredo-do-outro');
+        $this->comToken($tokenB)->putJson('/v1/itens/'.$item['id'], [
+            'revisao_base' => 0,
+            'blob' => $item['blob'],
+        ])->assertCreated();
+
+        $this->comToken($tokenA)->getJson('/v1/itens')->assertOk()->assertJsonCount(0, 'itens');
+        $this->comToken($tokenA)->putJson('/v1/itens/'.$item['id'], [
+            'revisao_base' => 0,
+            'blob' => $item['blob'],
+        ])->assertStatus(422)->assertJsonPath('erro', 'formato_invalido');
+
+        $sessaoB = $this->comToken($tokenB)->getJson('/v1/sessoes')->assertOk()->json('sessoes.0.id');
+        $this->comToken($tokenA)->deleteJson('/v1/sessoes/'.$sessaoB)->assertStatus(404);
+        $this->comToken($tokenB)->getJson('/v1/itens')->assertOk()->assertJsonCount(1, 'itens');
+    }
+
+    public function test_a_api_de_sincronizacao_tem_limite(): void
+    {
+        [, $token] = $this->entrar();
+        config(['broquel.limite_api' => 1]);
+        $pedido = ['REMOTE_ADDR' => '203.0.113.77'];
+        $this->withServerVariables($pedido)->comToken($token)->getJson('/v1/itens')->assertOk();
+        $this->withServerVariables($pedido)->comToken($token)->getJson('/v1/itens')->assertStatus(429);
+    }
+
     public function test_sessao_revogada_e_rede_restrita(): void
     {
         [, $token] = $this->entrar();

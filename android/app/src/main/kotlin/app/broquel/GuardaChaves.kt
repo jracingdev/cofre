@@ -59,7 +59,9 @@ class GuardaChaves(private val contexto: Context) {
             .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
             .setKeySize(256)
             .setUserAuthenticationRequired(biometria)
+            .setUnlockedDeviceRequired(true)
         if (biometria) {
+            construtor.setInvalidatedByBiometricEnrollment(true)
             if (Build.VERSION.SDK_INT >= 30) {
                 construtor.setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
             } else {

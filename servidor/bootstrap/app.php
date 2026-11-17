@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(CabecalhosSeguranca::class);
         $middleware->api(append: [
             RestricaoIpGlobal::class,
+            'throttle:api',
         ]);
         $middleware->alias([
             'token' => AutenticarToken::class,

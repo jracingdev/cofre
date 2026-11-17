@@ -25,6 +25,7 @@ final class Autenticacao
     /** @return array{desafio_id: string, desafio: string, expira_em: string} */
     public function desafio(CofreRegistro $cofre, Request $pedido): array
     {
+        DB::table('desafios')->where('cofre_id', $cofre->id)->where('expira_em', '<', now())->delete();
         $cru = random_bytes(32);
         $id = (string) Str::uuid();
         $expira = now()->addSeconds((int) config('broquel.desafio_segundos'));
