@@ -1,6 +1,7 @@
 {
   "name": "broquel/cripto",
   "description": "Implementação PHP da criptografia do Broquel, para validar o formato no servidor.",
+  "version": "1.0.0",
   "type": "library",
   "require": {
     "php": ">=8.2",

@@ -6,3 +6,5 @@ npm test
 npm run typecheck
 cd "$raiz/php"
 composer test
+cd "$raiz/servidor"
+php artisan test --colors=never

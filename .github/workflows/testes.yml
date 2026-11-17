@@ -41,3 +41,20 @@ jobs:
       - name: Testes
         working-directory: php
         run: composer test
+
+  servidor:
+    name: Servidor Laravel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: sodium, intl, mbstring, gmp, pdo_sqlite, sqlite3
+          coverage: none
+      - name: Instalar
+        working-directory: servidor
+        run: composer install --no-interaction --prefer-dist
+      - name: Testes
+        working-directory: servidor
+        run: php artisan test --colors=never
