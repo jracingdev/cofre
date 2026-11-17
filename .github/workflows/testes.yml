@@ -64,7 +64,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -72,6 +72,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libsodium-dev
       - name: SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
       - name: Plataforma
         run: yes | sdkmanager --licenses >/dev/null || true
       - name: Componentes
