@@ -1,0 +1,30 @@
+{
+  "name": "@broquel/cripto",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Criptografia e gerador de senhas do Broquel. O cofre web reutiliza este pacote.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "vetores": "node --import tsx scripts/gerar-vetores.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "libsodium-wrappers-sumo": "0.8.4"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

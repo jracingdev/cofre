@@ -1,0 +1,43 @@
+name: Testes
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  javascript:
+    name: TypeScript
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: packages/cripto/package-lock.json
+      - name: Instalar
+        working-directory: packages/cripto
+        run: npm ci
+      - name: Testes
+        working-directory: packages/cripto
+        run: npm test
+      - name: Tipos
+        working-directory: packages/cripto
+        run: npm run typecheck
+
+  php:
+    name: PHP 8.2
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          extensions: sodium, intl, mbstring
+          coverage: none
+      - name: Instalar
+        working-directory: php
+        run: composer install --no-interaction --prefer-dist
+      - name: Testes
+        working-directory: php
+        run: composer test
