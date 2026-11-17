@@ -16,7 +16,7 @@ Esta entrega é a etapa 1: a especificação, a biblioteca compartilhada e os te
 
 1. **Criptografia e base.** Formato versionado, biblioteca TypeScript (a mesma que o cofre web vai importar), a mesma lógica em PHP para conferir os bytes, gerador de senhas e vetores de teste. É esta etapa.
 2. **Servidor Laravel (PHP 8.2).** Feito, em `servidor/`. Sincronização, login por desafio, segundo fator e limites. A instalação no VPS está em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md). O servidor não decifra nada.
-3. **Aplicativo Android (Kotlin).** Nome exibido Broquel, ícone do escudo longo azul com bordas pretas, gerador com os mesmos controles deslizantes. Quando o aplicativo existir, a instalação no celular ligado por ADB entra nesta etapa. O app confere `vetores/vetores.json` antes de ser dado como compatível.
+3. **Aplicativo Android (Kotlin).** Feito, em `android/`. Nome Broquel, ícone do escudo longo azul, gerador, cofre offline cifrado e sincronização com o servidor. O APK de debug sai como artefato do CI.
 4. **Cofre web.** Reutiliza `packages/cripto`. Os mesmos controles do gerador.
 5. **Revisão de segurança.** Leitura independente do formato, da biblioteca e do servidor, atrás de vazamento, troca de versão e erro de implementação.
 

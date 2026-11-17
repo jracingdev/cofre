@@ -8,3 +8,7 @@ cd "$raiz/php"
 composer test
 cd "$raiz/servidor"
 php artisan test --colors=never
+if [ -x "$raiz/android/gradlew" ]; then
+  cd "$raiz/android"
+  ./gradlew :cripto:test :app:testDebugUnitTest
+fi

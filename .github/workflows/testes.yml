@@ -58,3 +58,30 @@ jobs:
       - name: Testes
         working-directory: servidor
         run: php artisan test --colors=never
+
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: libsodium
+        run: sudo apt-get update && sudo apt-get install -y libsodium-dev
+      - name: SDK
+        uses: android-actions/setup-android@v3
+      - name: Plataforma
+        run: yes | sdkmanager --licenses >/dev/null || true
+      - name: Componentes
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Testes e APK
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew :cripto:test :app:testDebugUnitTest :app:assembleDebug
+      - name: APK de debug
+        uses: actions/upload-artifact@v4
+        with:
+          name: broquel-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
