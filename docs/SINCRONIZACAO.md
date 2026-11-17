@@ -71,19 +71,36 @@ A cifra não interpreta o conteúdo. Para o Android e o site guardarem o mesmo t
 
 ## Troca com o servidor
 
-Tudo abaixo exige um token de sessão, menos o desafio. O token é aleatório, de 32 bytes. O servidor guarda só o BLAKE2b dele, não o token em claro, e nunca a senha nem a chave do cofre.
+O token de sessão é aleatório, de 32 bytes. O servidor guarda só o BLAKE2b dele, não o token em claro, e nunca a senha nem a chave do cofre. O desafio e a leitura do cabeçalho não pedem token. O resto pede.
 
 1. `POST /v1/cofre` — envia o cabeçalho. O servidor grava o blob e lê a chave pública no offset 53.
 2. `POST /v1/auth/desafio` — o servidor sorteia 32 bytes, amarra ao cofre e expira em 2 minutos.
-3. `POST /v1/auth/responder` — o cliente assina a mensagem de 55 bytes. O servidor confere a assinatura, queima o desafio e devolve o token.
-4. `GET /v1/itens` — todas as cabeças, inclusive as apagadas, como blobs.
-5. `PUT /v1/itens/{id}` — blob mais `revisao_base`. O identificador da URL tem de ser o do blob, e o cofre tem de ser o do token. Sucesso grava a cabeça nova. Conflito responde 409 com a cabeça atual.
+3. `POST /v1/auth/responder` — o cliente assina a mensagem de 55 bytes. O servidor confere a assinatura, queima o desafio e devolve o token, ou um pré-token se o segundo fator já estiver ligado.
+4. `GET /v1/cofre/{id}` — devolve o cabeçalho. Não exige sessão: o segundo aparelho precisa do sal e dos embrulhos para conseguir assinar. O identificador tem 128 bits.
+5. `GET /v1/itens?cursor=0&limite=100` — cabeças com cursor maior que o informado, inclusive as apagadas. A resposta traz `proximo_cursor` e `tem_mais`. O cursor é um número do servidor que sobe a cada gravação aceita. Não faz parte do conteúdo e não decide conflito.
+6. `PUT /v1/itens/{id}` — blob em base64 mais `revisao_base`. O identificador da URL tem de ser o do blob, e o cofre tem de ser o do token. Sucesso grava a cabeça nova. Conflito responde 409 com a cabeça atual.
 
 Não há rota de exclusão física. Apagar é um `PUT` com `apagado = 1`.
 
+## Sessão e segundo fator
+
+O token de sessão dura no máximo 60 minutos (20 por padrão). O servidor guarda só o BLAKE2b de 32 bytes. Cada aparelho tem a sua sessão, e `DELETE /v1/sessoes/{id}` revoga uma delas.
+
+Se o cofre já tem TOTP ou uma chave FIDO2, a assinatura do desafio não entrega o token de sincronização. Entrega um pré-token de 5 minutos, que só serve para concluir o segundo fator:
+
+- `POST /v1/auth/totp` com o código de 6 dígitos
+- `POST /v1/auth/recuperacao` com um código de recuperação de uso único, mostrado uma vez ao confirmar o TOTP
+- `POST /v1/webauthn/login/opcoes` e `POST /v1/webauthn/login` para a chave FIDO2
+
+O cadastro do TOTP e da chave FIDO2 pede uma sessão já aberta. Enquanto nada estiver cadastrado, a assinatura sozinha abre a sessão, para o primeiro acesso poder ligar o segundo fator.
+
+`PUT /v1/cofre/rede` liga a lista de IPs daquele cofre. Se a variável `BROQUEL_IPS` estiver preenchida, ela vale para o servidor inteiro.
+
+Os blobs viajam em base64 comum. O cabeçalho novo, depois de trocar a senha no aparelho, entra por `PUT /v1/cofre`. A chave pública tem de continuar a mesma.
+
 ## Ida e volta
 
-O cliente puxa a lista inteira. Para um cofre pessoal isso basta.
+O cliente puxa a partir do cursor 0 e segue enquanto `tem_mais` for verdadeiro. Um cofre pessoal cabe em poucas páginas.
 
 - Revisão do servidor maior, e não há mudança local pendente: fica a do servidor, se ela não for menor que a maior já vista.
 - Revisão local é a do servidor mais 1, e a base local é a do servidor: envia.
