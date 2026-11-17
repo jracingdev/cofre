@@ -9,7 +9,6 @@ import {
 import { ErroCofre } from './erros.js';
 import { bytesIguais, normalizarSenha, validarParametros, type ParametrosKdf } from './bytes.js';
 import {
-  aadItem,
   aadKit,
   aadSenha,
   type Cabecalho,

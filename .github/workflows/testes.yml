@@ -24,6 +24,11 @@ jobs:
       - name: Tipos
         working-directory: packages/cripto
         run: npm run typecheck
+      - name: Cofre web
+        working-directory: web
+        run: npm ci && npm test && npm run typecheck && npm run build
+      - name: Build publicado
+        run: git diff --exit-code -- servidor/public/app
 
   php:
     name: PHP 8.2

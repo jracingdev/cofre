@@ -102,14 +102,11 @@ data class ConteudoLogin(
     val conflitoDe: String? = null,
 )
 
-fun ConteudoLogin.paraBytes(): ByteArray = JSONObject()
-    .put("v", 1)
-    .put("tipo", "login")
-    .put("titulo", titulo)
-    .put("campos", JSONObject().put("usuario", usuario).put("senha", senha).put("url", url).put("notas", notas))
-    .put("conflito_de", conflitoDe ?: JSONObject.NULL)
-    .toString()
-    .toByteArray()
+fun ConteudoLogin.paraBytes(): ByteArray {
+    val conflito = if (conflitoDe == null) "null" else JSONObject.quote(conflitoDe)
+    val texto = "{\"v\":1,\"tipo\":\"login\",\"titulo\":${JSONObject.quote(titulo)},\"campos\":{\"usuario\":${JSONObject.quote(usuario)},\"senha\":${JSONObject.quote(senha)},\"url\":${JSONObject.quote(url)},\"notas\":${JSONObject.quote(notas)}},\"conflito_de\":$conflito}"
+    return texto.toByteArray(Charsets.UTF_8)
+}
 
 fun conteudoDe(bytes: ByteArray): ConteudoLogin {
     if (bytes.isEmpty()) return ConteudoLogin()

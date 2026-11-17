@@ -18,4 +18,13 @@ class EstadoTest {
         assertEquals("Banco", conteudoDe(original.paraBytes()).titulo)
         assertEquals("abc", conteudoDe(original.paraBytes()).conflitoDe)
     }
+
+    @Test
+    fun jsonDoLoginIgualAoContratoDaWeb() {
+        val texto = ConteudoLogin("Banco", "ana", "segredo", "https://banco", "", null).paraBytes().toString(Charsets.UTF_8)
+        assertEquals(
+            """{"v":1,"tipo":"login","titulo":"Banco","campos":{"usuario":"ana","senha":"segredo","url":"https://banco","notas":""},"conflito_de":null}""",
+            texto,
+        )
+    }
 }

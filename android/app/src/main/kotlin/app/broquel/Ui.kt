@@ -52,7 +52,7 @@ fun App(modelo: Modelo) {
             if (ui.aviso.isNotBlank()) Text(ui.aviso)
             when (ui.tela) {
                 "carregando" -> Text("Abrindo o cofre local…")
-                "inicio" -> Inicio(modelo)
+                "inicio" -> Inicio(ui, modelo)
                 "criar" -> Criar(ui, modelo)
                 "kit" -> Kit(ui, modelo)
                 "desbloquear" -> Desbloquear(ui, modelo)
@@ -66,9 +66,12 @@ fun App(modelo: Modelo) {
 }
 
 @Composable
-private fun Inicio(modelo: Modelo) {
-    Text("Crie um cofre neste aparelho. A senha mestra não sai daqui.")
+private fun Inicio(ui: Ui, modelo: Modelo) {
+    Text("Crie um cofre neste aparelho ou traga um que já existe no servidor. A senha mestra não sai daqui.")
     Button(onClick = { modelo.ir("criar") }) { Text("Criar cofre") }
+    OutlinedTextField(ui.url, modelo::definirUrl, label = { Text("Servidor") }, modifier = Modifier.fillMaxWidth())
+    OutlinedTextField(ui.identificadorRemoto, modelo::definirIdentificadorRemoto, label = { Text("Identificador do cofre") }, modifier = Modifier.fillMaxWidth())
+    Button(onClick = modelo::trazerCofre, enabled = !ui.ocupado) { Text("Trazer do servidor") }
 }
 
 @Composable
@@ -83,6 +86,8 @@ private fun Criar(ui: Ui, modelo: Modelo) {
 private fun Kit(ui: Ui, modelo: Modelo) {
     Text("Anote este kit fora do aparelho. Ele abre o cofre se você esquecer a senha. Ele não será mostrado de novo.")
     Text(ui.kit)
+    Text("Identificador, para o site: ${ui.identificador}")
+    Button(onClick = { modelo.copiar(ui.identificador) }) { Text("Copiar identificador") }
     Button(onClick = { modelo.copiar(ui.kit) }) { Text("Copiar kit") }
     Button(onClick = modelo::kitGuardado) { Text("Já anotei") }
 }
@@ -91,6 +96,11 @@ private fun Kit(ui: Ui, modelo: Modelo) {
 private fun Desbloquear(ui: Ui, modelo: Modelo) {
     OutlinedTextField(ui.senha, modelo::definirSenha, label = { Text("Senha mestra") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
     Button(onClick = modelo::desbloquear, enabled = !ui.ocupado) { Text("Abrir") }
+    if (ui.identificador.isNotBlank()) {
+        Text("Identificador: ${ui.identificador}")
+        TextButton(onClick = { modelo.copiar(ui.identificador) }) { Text("Copiar identificador") }
+    }
+    TextButton(onClick = { modelo.ir("inicio") }) { Text("Outro cofre") }
     if (modelo.pedirBiometria()) {
         val activity = LocalContext.current as FragmentActivity
         Button(onClick = {
@@ -164,6 +174,10 @@ private fun GeradorTela(ui: Ui, modelo: Modelo) {
 
 @Composable
 private fun Ajustes(ui: Ui, modelo: Modelo) {
+    if (ui.identificador.isNotBlank()) {
+        Text("Identificador: ${ui.identificador}")
+        TextButton(onClick = { modelo.copiar(ui.identificador) }) { Text("Copiar identificador") }
+    }
     OutlinedTextField(ui.url, modelo::definirUrl, label = { Text("Servidor") }, modifier = Modifier.fillMaxWidth())
     OutlinedTextField(ui.pins, modelo::definirPins, label = { Text("Pins sha256/ do certificado, um por linha") }, modifier = Modifier.fillMaxWidth())
     Text("Bloqueio automático: ${ui.bloqueioSegundos}s")

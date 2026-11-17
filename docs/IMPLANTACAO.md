@@ -131,6 +131,40 @@ sudo ufw enable
 
 Confira que a porta do MySQL e a do PHP-FPM não aparecem em `ss -lnt`. As duas ficam em localhost.
 
+## Cofre web
+
+O cofre no navegador é um site estático. A cifra acontece no navegador, com a mesma biblioteca da etapa 1. O servidor continua recebendo só o cabeçalho e os blobs.
+
+O build já pode estar em `servidor/public/app/`. Para gerar de novo, no computador que tem Node.js 22:
+
+```sh
+cd web
+npm ci
+npm test
+npm run build
+```
+
+Isso escreve os arquivos em `servidor/public/app/`. O Nginx, com a raiz em `servidor/public`, entrega `https://cofre.seudominio/app/`. A API continua em `/v1`, na mesma origem. Não há campo de servidor no site: a política de conteúdo só deixa a página falar com ela mesma.
+
+No bloco `server` do Nginx, junto das outras rotas:
+
+```nginx
+location /app/ {
+    add_header Content-Security-Policy "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; connect-src 'self'; worker-src 'none'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'" always;
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy no-referrer always;
+    add_header Cache-Control "no-store" always;
+    try_files $uri $uri/ /app/index.html;
+}
+```
+
+`wasm-unsafe-eval` existe porque o libsodium sobe o WebAssembly. Não há `unsafe-inline` e não há script de outro site. O `index.html` também traz essa política e a integridade (SRI) dos arquivos. A chave do cofre fica só na memória e some ao travar ou ao fechar a aba. O navegador pode guardar o cabeçalho e os itens cifrados no IndexedDB. Isso não é a senha nem a chave.
+
+`BROQUEL_RP_ID` e `BROQUEL_ORIGEM` têm de ser o domínio e a origem em que o site abre, senão a chave FIDO2 recusa. Exemplo: `cofre.seudominio` e `https://cofre.seudominio`.
+
+No celular, o identificador de 32 caracteres hexadecimais aparece nos ajustes e na tela do kit. No site, cole esse identificador em "Abrir cofre existente" e use a mesma senha mestra. O que for criado num lado aparece no outro depois de sincronizar.
+
 ## aaPanel
 
 O caminho é o mesmo, com os cliques do painel:
@@ -144,13 +178,12 @@ O caminho é o mesmo, com os cliques do painel:
 
 ## O que conferir depois
 
-`https://cofre.seudominio/` responde `{"servico":"broquel","versao":1}`. `APP_DEBUG` continua `false`. Um `GET` em `/v1/cofre/` com um id inventado não devolve cabeçalho. Os logs em `storage/logs` não devem ser `debug`.
+`https://cofre.seudominio/` responde `{"servico":"broquel","versao":1}`. `https://cofre.seudominio/app/` abre o Broquel. `APP_DEBUG` continua `false`. Um `GET` em `/v1/cofre/` com um id inventado não devolve cabeçalho. Os logs em `storage/logs` não devem ser `debug`.
 
-O primeiro cofre é criado pelo aplicativo, que ainda é a etapa 3, ou por um cliente que já fale esta API. No primeiro acesso não há segundo fator. Com a sessão aberta, o cofre web (etapa 4) cadastra o TOTP ou a chave FIDO2. A partir daí todo login pede o segundo fator. Os oito códigos de recuperação aparecem uma vez. Guarde-os fora do servidor.
+O primeiro cofre pode nascer no aplicativo ou no site. No primeiro acesso não há segundo fator. Com a sessão aberta, o site cadastra o TOTP ou a chave FIDO2. A partir daí todo login, no site e no aplicativo, pede o segundo fator. Os oito códigos de recuperação aparecem uma vez. Guarde-os fora do servidor.
 
 ## O que ainda não está feito
 
 - Não há DNS, certificado nem VPS criados daqui. Isso é na máquina de produção.
-- O aplicativo Android e o cofre web ainda não existem, então ninguém sincroniza até as etapas 3 e 4.
 - Não há fila, e-mail nem painel de administração. Não precisa.
-- A cerimônia FIDO2 completa depende de um navegador e de uma chave de verdade. O teste automático confere que uma cerimônia forjada é recusada e que o servidor emite o desafio.
+- A cerimônia FIDO2 completa depende de um navegador e de uma chave de verdade. O teste automático confere que uma cerimônia forjada é recusada e que o servidor emite o desafio. O site chama a API de cadastro e de login dessa chave.

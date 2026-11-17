@@ -10,15 +10,15 @@ O programa tem três partes, construídas em etapas:
 
 O servidor guarda só dados cifrados. A senha mestra, as chaves e o conteúdo dos itens não saem do aparelho em claro. Isso se chama cofre de conhecimento zero: quem administra o servidor, ou quem rouba o banco, não consegue ler as senhas.
 
-Esta entrega é a etapa 1: a especificação, a biblioteca compartilhada e os testes. Ainda não há aplicativo, servidor nem tela.
+O servidor, o aplicativo e o cofre web já estão no repositório. A etapa que falta é a revisão de segurança.
 
 ## Etapas
 
 1. **Criptografia e base.** Formato versionado, biblioteca TypeScript (a mesma que o cofre web vai importar), a mesma lógica em PHP para conferir os bytes, gerador de senhas e vetores de teste. É esta etapa.
 2. **Servidor Laravel (PHP 8.2).** Feito, em `servidor/`. Sincronização, login por desafio, segundo fator e limites. A instalação no VPS está em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md). O servidor não decifra nada.
 3. **Aplicativo Android (Kotlin).** Feito, em `android/`. Nome Broquel, ícone do escudo longo azul, gerador, cofre offline cifrado e sincronização com o servidor. O APK de debug sai como artefato do CI.
-4. **Cofre web.** Reutiliza `packages/cripto`. Os mesmos controles do gerador.
-5. **Revisão de segurança.** Leitura independente do formato, da biblioteca e do servidor, atrás de vazamento, troca de versão e erro de implementação.
+4. **Cofre web.** Feito, em `web/`. A cifra fica no navegador, com a biblioteca `packages/cripto`. O build publicado fica em `servidor/public/app/` e abre em `/app/`.
+5. **Revisão de segurança.** Leitura independente do formato, da biblioteca, do servidor e dos clientes, atrás de vazamento, troca de versão e erro de implementação.
 
 ## O que a gente assume que o atacante pode fazer
 
@@ -87,7 +87,16 @@ O detalhe dos alfabetos, do piso de bits e do sorteio está em [docs/GERADOR.md]
 
 Os vetores públicos ficam em [vetores/vetores.json](vetores/vetores.json). Eles usam Argon2id fraco de propósito, para o teste ser rápido. Um cofre de verdade recusa esses parâmetros. A senha dos vetores é fictícia.
 
-O formato byte a byte está em [docs/CRIPTOGRAFIA.md](docs/CRIPTOGRAFIA.md). A sincronização entre o Android e o site está em [docs/SINCRONIZACAO.md](docs/SINCRONIZACAO.md). O servidor dessa sincronização é a etapa 2.
+O formato byte a byte está em [docs/CRIPTOGRAFIA.md](docs/CRIPTOGRAFIA.md). A sincronização entre o Android e o site está em [docs/SINCRONIZACAO.md](docs/SINCRONIZACAO.md). A instalação do servidor e do cofre web está em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md).
+
+O cofre web abre em `https://cofre.seudominio/app/` depois do build. No computador de desenvolvimento:
+
+```sh
+cd web && npm ci && npm test && npm run build
+cd ../servidor && php artisan serve
+```
+
+A página e a API ficam na mesma origem. A chave não vai para o `localStorage`.
 
 ## Layout
 
@@ -95,4 +104,6 @@ O formato byte a byte está em [docs/CRIPTOGRAFIA.md](docs/CRIPTOGRAFIA.md). A s
 - `php` — a mesma lógica, para o servidor conferir o formato
 - `vetores/vetores.json` — vetores fixos para o Android
 - `design/broquel.svg` — ícone
+- `web` — cofre no navegador
+- `servidor/public/app` — build publicado do cofre web
 - `docs` — especificações

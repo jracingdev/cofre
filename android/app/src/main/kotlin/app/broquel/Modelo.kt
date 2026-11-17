@@ -45,6 +45,8 @@ data class Ui(
     val codigoTotp: String = "",
     val biometria: Boolean = false,
     val bloqueioSegundos: Int = 60,
+    val identificador: String = "",
+    val identificadorRemoto: String = "",
 )
 
 data class LinhaItem(val id: ByteArray, val titulo: String, val usuario: String, val conflito: Boolean)
@@ -63,7 +65,16 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         viewModelScope.launch(Dispatchers.IO) {
             estado = runCatching { banco.ler() }.getOrElse { EstadoBanco() }
             val tela = if (estado.cabecalho.isEmpty()) "inicio" else "desbloquear"
-            publicar { copy(tela = tela, url = estado.url, pins = estado.pins, biometria = estado.biometria, bloqueioSegundos = estado.bloqueioSegundos) }
+            publicar {
+                copy(
+                    tela = tela,
+                    url = estado.url,
+                    pins = estado.pins,
+                    biometria = estado.biometria,
+                    bloqueioSegundos = estado.bloqueioSegundos,
+                    identificador = identificadorDe(estado.cabecalho),
+                )
+            }
         }
     }
 
@@ -83,7 +94,16 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
             )
             app.sessao = sessao
             gravar()
-            publicar { copy(tela = "kit", kit = kit, senha = "", confirmacao = "", erro = "") }
+            publicar {
+                copy(
+                    tela = "kit",
+                    kit = kit,
+                    senha = "",
+                    confirmacao = "",
+                    erro = "",
+                    identificador = identificadorDe(cabecalho),
+                )
+            }
         }
     }
 
@@ -216,6 +236,28 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
     fun abrirAjustes() = publicar { copy(tela = "ajustes", url = estado.url, pins = estado.pins, bloqueioSegundos = estado.bloqueioSegundos) }
 
     fun definirUrl(valor: String) { estado = estado.copy(url = valor); gravar(); publicar { copy(url = valor) } }
+
+    fun definirIdentificadorRemoto(valor: String) {
+        val limpo = valor.lowercase().filter { it.isDigit() || it in 'a'..'f' }.take(32)
+        publicar { copy(identificadorRemoto = limpo) }
+    }
+
+    fun trazerCofre() {
+        trabalhar {
+            val id = _ui.value.identificadorRemoto
+            if (!id.matches(Regex("^[0-9a-f]{32}$"))) {
+                throw ErroRede("formato_invalido", "O identificador tem 32 caracteres hexadecimais.")
+            }
+            if (estado.url.isBlank()) throw ErroRede("rede", "Informe o endereço do servidor.")
+            val cab = ClienteSync(estado.url, pinsDe(estado.pins)).cabecalho(id)
+            if (bytesParaHex(lerCabecalho(cab).cofreId) != id) {
+                throw ErroRede("formato_invalido", "O cabeçalho não bate com o identificador.")
+            }
+            estado = estado.copy(cabecalho = cab, cofreId = id, itens = emptyList(), cursor = 0)
+            gravar()
+            publicar { copy(tela = "desbloquear", identificador = id, aviso = "Cabeçalho recebido. Abra com a senha mestra.", erro = "") }
+        }
+    }
     fun definirPins(valor: String) { estado = estado.copy(pins = valor); gravar(); publicar { copy(pins = valor) } }
     fun definirBloqueio(segundos: Int) { estado = estado.copy(bloqueioSegundos = segundos); gravar(); publicar { copy(bloqueioSegundos = segundos) } }
     fun definirCodigo(valor: String) = publicar { copy(codigoTotp = valor.filter { it.isDigit() }.take(6)) }
@@ -282,6 +324,11 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
 
     private fun publicar(bloco: Ui.() -> Ui) {
         _ui.value = _ui.value.bloco()
+    }
+
+    private fun identificadorDe(cabecalho: ByteArray): String {
+        if (cabecalho.isEmpty()) return ""
+        return bytesParaHex(lerCabecalho(cabecalho).cofreId)
     }
 }
 

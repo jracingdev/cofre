@@ -1,0 +1,97 @@
+:root {
+  color-scheme: dark;
+  --azul: #1d4ed8;
+  --azul-claro: #3b6bff;
+  --fundo: #071018;
+  --superficie: #101820;
+  --texto: #e8eef5;
+  --mudo: #9aabbc;
+  --erro: #ffb4ab;
+  --linha: #243140;
+  --ok: #b7f0c8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 16px/1.45 system-ui, sans-serif;
+}
+
+.moldura {
+  width: min(40rem, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1.5rem 0 3rem;
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.marca img { width: 3.25rem; height: 3.25rem; }
+
+h1 { font-size: 1.6rem; margin: 0; }
+
+h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
+
+p { margin: 0.35rem 0; }
+
+.mudo { color: var(--mudo); }
+
+.erro { color: var(--erro); }
+
+.ok { color: var(--ok); }
+
+.cartao, .item, .kit {
+  background: var(--superficie);
+  border: 1px solid var(--linha);
+  border-radius: 0.75rem;
+  padding: 0.9rem 1rem;
+}
+
+.pilha, .acoes { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.acoes { flex-direction: row; flex-wrap: wrap; }
+
+label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.92rem; }
+
+input, button, textarea {
+  font: inherit;
+  color: var(--texto);
+}
+
+input, textarea {
+  width: 100%;
+  background: #0b141c;
+  border: 1px solid var(--linha);
+  border-radius: 0.5rem;
+  padding: 0.65rem 0.75rem;
+}
+
+textarea { min-height: 5rem; resize: vertical; }
+
+button {
+  background: var(--azul);
+  border: 0;
+  border-radius: 0.55rem;
+  padding: 0.65rem 0.9rem;
+  cursor: pointer;
+}
+
+button.secundario { background: transparent; border: 1px solid var(--linha); }
+
+button:disabled { opacity: 0.55; cursor: progress; }
+
+.item { width: 100%; text-align: left; background: var(--superficie); }
+
+.faixa { display: flex; justify-content: space-between; gap: 1rem; }
+
+.kit { word-break: break-all; font-family: ui-monospace, monospace; }
+
+.lista { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; }
