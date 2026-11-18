@@ -98,6 +98,7 @@ const acoes: Acoes = {
   apagar: () => { void apagar(); },
   copiar: (texto) => { void copiar(texto); },
   gerar: () => { void gerar(); },
+  gerarNoEditor: () => { void gerarNoEditor(); },
   usarGerada: () => {
     rascunho.editor = { ...conteudoVazio(), senha: vista.senhaGerada };
     vista.senhaGerada = '';
@@ -255,6 +256,7 @@ async function editar(id: string): Promise<void> {
 async function salvar(): Promise<void> {
   if (!sessao) return;
   const id = editandoId;
+  vista.aviso = '';
   await ocupado(async () => {
     estado.itens = id
       ? await alterarItem(sessao!, estado.itens, id, rascunho.editor, relogio.agora())
@@ -276,6 +278,13 @@ async function apagar(): Promise<void> {
     await persistir();
     await mostrarLista();
   });
+}
+
+/** Gera direto no item aberto, sem perder o que já foi digitado nele. */
+async function gerarNoEditor(): Promise<void> {
+  rascunho.editor.senha = await gerarSenha({ nivel: vista.gerador.nivel, comprimento: vista.gerador.comprimento });
+  vista.aviso = 'Senha gerada. Salve o item para guardar.';
+  desenhar(raiz, vista, rascunho, acoes);
 }
 
 async function gerar(): Promise<void> {

@@ -53,6 +53,7 @@ export type Acoes = {
   apagar(): void;
   copiar(texto: string): void;
   gerar(): void;
+  gerarNoEditor(): void;
   usarGerada(): void;
   nivel(valor: number): void;
   comprimento(valor: number): void;
@@ -152,7 +153,7 @@ function criar(rascunho: Rascunho, acoes: Acoes): HTMLElement {
   bloco.append(
     paragrafo('No mínimo 12 caracteres. A derivação usa Argon2id forte e pode travar esta aba por alguns segundos.', 'mudo'),
     campo('Senha mestra', 'password', rascunho.senha, (valor) => { rascunho.senha = valor; }),
-    campo('Repita a senha', 'password', rascunho.confirmacao, (valor) => { rascunho.confirmacao = valor; }),
+    campo('Repita a senha', 'password', rascunho.confirmacao, (valor) => { rascunho.confirmacao = valor; }, acoes.confirmarCriacao),
     botao('Criar', acoes.confirmarCriacao, false),
     botao('Voltar', () => acoes.ir('inicio'), false, true),
   );
@@ -194,7 +195,7 @@ function abrir(vista: Vista, rascunho: Rascunho, acoes: Acoes): HTMLElement {
   bloco.append(
     logo,
     paragrafo(`Cofre ${vista.identificador}`, 'mudo'),
-    campo('Senha mestra', 'password', rascunho.senha, (valor) => { rascunho.senha = valor; }),
+    campo('Senha mestra', 'password', rascunho.senha, (valor) => { rascunho.senha = valor; }, acoes.abrir),
     botao('Abrir', acoes.abrir, vista.ocupado),
     campo('Kit de recuperação', 'text', rascunho.kit, (valor) => { rascunho.kit = valor; }),
     botao('Abrir com o kit', acoes.abrirComKit, vista.ocupado, true),
@@ -215,8 +216,9 @@ function lista(vista: Vista, acoes: Acoes): HTMLElement {
     botao('Sair', () => acoes.ir('sair'), false, true),
   );
   const itens = el('div', 'lista');
-  if (vista.linhas.length === 0) itens.append(paragrafo('Nenhum item. O que foi apagado continua no servidor só como marca, sem o conteúdo.', 'mudo'));
-  for (const linha of vista.linhas) {
+  if (vista.linhas.length === 0) itens.append(paragrafo('Nenhum item ainda. Use Novo item para guardar a primeira senha.', 'mudo'));
+  const ordenadas = [...vista.linhas].sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt-BR', { sensitivity: 'base' }));
+  for (const linha of ordenadas) {
     const botaoItem = document.createElement('button');
     botaoItem.className = 'item';
     botaoItem.type = 'button';
@@ -227,9 +229,12 @@ function lista(vista: Vista, acoes: Acoes): HTMLElement {
     usuario.className = 'mudo';
     usuario.textContent = linha.usuario;
     botaoItem.append(nome, usuario);
+    botaoItem.dataset.busca = `${linha.titulo} ${linha.usuario}`.toLocaleLowerCase('pt-BR');
     itens.append(botaoItem);
   }
-  bloco.append(acoesLinha, itens);
+  bloco.append(acoesLinha);
+  if (vista.linhas.length > 5) bloco.append(busca(itens));
+  bloco.append(itens);
   return bloco;
 }
 
@@ -239,15 +244,17 @@ function editor(rascunho: Rascunho, acoes: Acoes): HTMLElement {
   bloco.append(
     campo('Título', 'text', editorAtual.titulo, (valor) => { editorAtual.titulo = valor; }),
     campo('Usuário', 'text', editorAtual.usuario, (valor) => { editorAtual.usuario = valor; }),
-    campo('Senha', 'text', editorAtual.senha, (valor) => { editorAtual.senha = valor; }),
-    campo('Site', 'text', editorAtual.url, (valor) => { editorAtual.url = valor; }),
+    campoSenha('Senha', editorAtual.senha, (valor) => { editorAtual.senha = valor; }),
+    botao('Gerar senha forte', acoes.gerarNoEditor, false, true),
+    campo('Site', 'url', editorAtual.url, (valor) => { editorAtual.url = valor; }),
     area('Notas', editorAtual.notas, (valor) => { editorAtual.notas = valor; }),
   );
   const linha = el('div', 'acoes');
   linha.append(
     botao('Salvar', acoes.salvar, false),
+    botao('Copiar usuário', () => acoes.copiar(editorAtual.usuario), false, true),
     botao('Copiar senha', () => acoes.copiar(editorAtual.senha), false, true),
-    botao('Apagar', acoes.apagar, false, true),
+    botaoConfirmado('Apagar', 'Confirmar: apagar de vez', acoes.apagar),
     botao('Voltar', () => acoes.ir('lista'), false, true),
   );
   bloco.append(linha);
@@ -336,7 +343,7 @@ function segundo(vista: Vista, rascunho: Rascunho, acoes: Acoes): HTMLElement {
   const bloco = el('section', 'pilha');
   bloco.append(paragrafo('O cofre pede o segundo fator.', ''));
   if (vista.metodos.includes('totp')) {
-    bloco.append(campo('Código TOTP', 'text', rascunho.codigo, (valor) => { rascunho.codigo = valor; }));
+    bloco.append(campo('Código TOTP', 'text', rascunho.codigo, (valor) => { rascunho.codigo = valor; }, () => acoes.concluirFator('totp'), 'one-time-code'));
     bloco.append(botao('Confirmar código', () => acoes.concluirFator('totp'), vista.ocupado));
   }
   if (vista.metodos.includes('recuperacao')) {
@@ -359,17 +366,100 @@ function controle(minimo: number, maximo: number, passo: number, valor: number, 
   return entrada;
 }
 
-function campo(rotulo: string, tipo: string, valor: string, aoMudar: (valor: string) => void): HTMLLabelElement {
+function campo(
+  rotulo: string,
+  tipo: string,
+  valor: string,
+  aoMudar: (valor: string) => void,
+  aoConfirmar?: () => void,
+  completar: AutoFill = 'off',
+): HTMLLabelElement {
   const etiqueta = document.createElement('label');
   etiqueta.textContent = rotulo;
+  etiqueta.append(entradaDe(tipo, valor, aoMudar, aoConfirmar, completar));
+  return etiqueta;
+}
+
+function entradaDe(
+  tipo: string,
+  valor: string,
+  aoMudar: (valor: string) => void,
+  aoConfirmar?: () => void,
+  completar: AutoFill = 'off',
+): HTMLInputElement {
   const entrada = document.createElement('input');
   entrada.type = tipo;
   entrada.value = valor;
-  entrada.autocomplete = 'off';
+  entrada.autocomplete = completar;
   entrada.spellcheck = false;
+  entrada.autocapitalize = 'off';
+  if (completar === 'one-time-code') entrada.inputMode = 'numeric';
   entrada.addEventListener('input', () => aoMudar(entrada.value));
-  etiqueta.append(entrada);
+  if (aoConfirmar) {
+    entrada.addEventListener('keydown', (evento) => {
+      if (evento.key === 'Enter') {
+        evento.preventDefault();
+        aoConfirmar();
+      }
+    });
+  }
+  return entrada;
+}
+
+/** Senha escondida por padrão, com botão para mostrar. Quem olha a tela não lê sem um clique a mais. */
+function campoSenha(rotulo: string, valor: string, aoMudar: (valor: string) => void): HTMLLabelElement {
+  const etiqueta = document.createElement('label');
+  etiqueta.textContent = rotulo;
+  const linha = el('div', 'com-botao');
+  const entrada = entradaDe('password', valor, aoMudar);
+  const alternar = botao('Mostrar', () => {
+    const mostrando = entrada.type === 'text';
+    entrada.type = mostrando ? 'password' : 'text';
+    alternar.textContent = mostrando ? 'Mostrar' : 'Ocultar';
+    alternar.setAttribute('aria-pressed', String(!mostrando));
+  }, false, true);
+  alternar.setAttribute('aria-pressed', 'false');
+  linha.append(entrada, alternar);
+  etiqueta.append(linha);
   return etiqueta;
+}
+
+/** Busca na lista sem redesenhar a tela, para o campo não perder o foco. */
+function busca(itens: HTMLElement): HTMLLabelElement {
+  const vazio = paragrafo('', 'mudo');
+  vazio.hidden = true;
+  itens.append(vazio);
+  return campo('Buscar', 'search', '', (valor) => {
+    const termo = valor.trim().toLocaleLowerCase('pt-BR');
+    let achados = 0;
+    for (const item of Array.from(itens.querySelectorAll<HTMLElement>('button.item'))) {
+      const mostra = !termo || (item.dataset.busca ?? '').includes(termo);
+      item.hidden = !mostra;
+      if (mostra) achados += 1;
+    }
+    vazio.hidden = achados > 0;
+    vazio.textContent = `Nada encontrado para "${valor.trim()}".`;
+  });
+}
+
+/** Ação destrutiva pede um segundo clique, sem caixa de diálogo do navegador. */
+function botaoConfirmado(texto: string, confirmar: string, aoConfirmar: () => void): HTMLButtonElement {
+  let armado = false;
+  const elemento = botao(texto, () => {
+    if (!armado) {
+      armado = true;
+      elemento.textContent = confirmar;
+      elemento.className = 'perigo';
+      window.setTimeout(() => {
+        armado = false;
+        elemento.textContent = texto;
+        elemento.className = 'secundario';
+      }, 5000);
+      return;
+    }
+    aoConfirmar();
+  }, false, true);
+  return elemento;
 }
 
 function area(rotulo: string, valor: string, aoMudar: (valor: string) => void): HTMLLabelElement {

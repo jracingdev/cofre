@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.PersistableBundle
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.broquel.cripto.ErroCripto
@@ -198,9 +199,20 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         publicar { comoLista(sessao) }
     }
 
-    fun copiar(texto: String) {
+    /**
+     * Copia e limpa depois de 45 segundos. Com `sensivel`, o Android 13+ não mostra o texto
+     * na prévia da área de transferência nem o sugere no teclado.
+     */
+    fun copiar(texto: String, sensivel: Boolean = true) {
+        if (texto.isEmpty()) return
         val clipboard = app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("broquel", texto))
+        val clip = ClipData.newPlainText("broquel", texto)
+        if (sensivel) {
+            clip.description.extras = PersistableBundle().apply {
+                putBoolean("android.content.extra.IS_SENSITIVE", true)
+            }
+        }
+        clipboard.setPrimaryClip(clip)
         limparClipboard?.cancel()
         limparClipboard = viewModelScope.launch {
             delay(45_000)
@@ -237,6 +249,13 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         val sodium = app.motor.sodium
         val senha = gerarSenha(_ui.value.nivel, _ui.value.comprimento) { teto -> sodium.randomBytesUniform(teto).toInt() }
         publicar { copy(senhaGerada = senha) }
+    }
+
+    /** Gera direto no editor, sem perder o item que está sendo editado. */
+    fun gerarParaEditor() {
+        val sodium = app.motor.sodium
+        val senha = gerarSenha(_ui.value.nivel, _ui.value.comprimento) { teto -> sodium.randomBytesUniform(teto).toInt() }
+        publicar { copy(editor = editor.copy(senha = senha), aviso = "Senha gerada. Salve o item para guardar.") }
     }
 
     fun usarSenhaGerada() {

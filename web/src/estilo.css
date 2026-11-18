@@ -96,10 +96,33 @@ button.secundario { background: transparent; border: 1px solid var(--linha); }
 
 button:disabled { opacity: 0.55; cursor: progress; }
 
+button:hover:not(:disabled) { filter: brightness(1.12); }
+
+button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--azul-claro);
+  outline-offset: 2px;
+}
+
+button.perigo { background: #b42318; }
+
+.com-botao { display: flex; gap: 0.5rem; }
+
+.com-botao input { flex: 1; min-width: 0; }
+
+.com-botao button { flex: none; }
+
+[hidden] { display: none !important; }
+
+@media (max-width: 30rem) {
+  .acoes > button { flex: 1 1 auto; }
+}
+
 .item { width: 100%; text-align: left; background: var(--superficie); }
 
 .faixa { display: flex; justify-content: space-between; gap: 1rem; }
 
 .kit { word-break: break-all; font-family: ui-monospace, monospace; }
+
+.acoes + label { margin-top: 0.75rem; }
 
 .lista { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; }
