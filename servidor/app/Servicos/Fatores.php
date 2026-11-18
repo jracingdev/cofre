@@ -44,6 +44,7 @@ final class Fatores
             [
                 'segredo_cifrado' => encrypt($totp->getSecret()),
                 'confirmado_em' => null,
+                'ultimo_passo' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -59,7 +60,8 @@ final class Fatores
     public function confirmarTotp(CofreRegistro $cofre, string $codigo): array
     {
         $linha = DB::table('totps')->where('cofre_id', $cofre->id)->first();
-        if ($linha === null || ! $this->codigoConfere(decrypt($linha->segredo_cifrado), $codigo)) {
+        $passo = $linha === null ? null : $this->passoDoCodigo(decrypt($linha->segredo_cifrado), $codigo);
+        if ($passo === null || ! $this->gastarPasso($cofre->id, $passo)) {
             throw new PedidoInvalido('autenticacao_falhou', 'Código inválido.', 401);
         }
         DB::table('totps')->where('cofre_id', $cofre->id)->update([
@@ -92,7 +94,9 @@ final class Fatores
             return false;
         }
 
-        return $this->codigoConfere(decrypt($linha->segredo_cifrado), $codigo);
+        $passo = $this->passoDoCodigo(decrypt($linha->segredo_cifrado), $codigo);
+
+        return $passo !== null && $this->gastarPasso($cofreId, $passo);
     }
 
     public function gastarRecuperacao(string $cofreId, string $codigo): bool
@@ -127,14 +131,45 @@ final class Fatores
         DB::table('codigos_recuperacao')->where('cofre_id', $cofre->id)->delete();
     }
 
-    private function codigoConfere(string $segredo, string $codigo): bool
+    /**
+     * Devolve o passo de 30 segundos em que o código vale, ou null.
+     * Folga de 15 segundos, abaixo do passo: aceita o relógio na borda, não o passo inteiro dos dois lados.
+     */
+    private function passoDoCodigo(string $segredo, string $codigo): ?int
     {
         if (! preg_match('/^[0-9]{6}$/', $codigo)) {
-            return false;
+            return null;
         }
         $totp = TOTP::create($segredo);
+        $periodo = $totp->getPeriod();
+        $agora = now()->getTimestamp();
+        $passos = array_unique([
+            intdiv($agora - 15, $periodo),
+            intdiv($agora, $periodo),
+            intdiv($agora + 15, $periodo),
+        ]);
+        $achado = null;
+        foreach ($passos as $passo) {
+            // Confere todos os passos, sem sair cedo, para o tempo não dizer qual bateu.
+            if (hash_equals($totp->at($passo * $periodo), $codigo)) {
+                $achado = $passo;
+            }
+        }
 
-        // 15 segundos, abaixo do passo de 30. Aceita o relógio na borda, não o passo inteiro dos dois lados.
-        return $totp->verify($codigo, null, 15);
+        return $achado;
+    }
+
+    /**
+     * Marca o passo como usado. Um código já aceito, ou de um passo anterior, não vale de novo (RFC 6238, 5.2).
+     * A troca é atômica: dois pedidos com o mesmo código não passam juntos.
+     */
+    private function gastarPasso(string $cofreId, int $passo): bool
+    {
+        return DB::table('totps')
+            ->where('cofre_id', $cofreId)
+            ->where(function ($consulta) use ($passo): void {
+                $consulta->whereNull('ultimo_passo')->orWhere('ultimo_passo', '<', $passo);
+            })
+            ->update(['ultimo_passo' => $passo, 'updated_at' => now()]) === 1;
     }
 }

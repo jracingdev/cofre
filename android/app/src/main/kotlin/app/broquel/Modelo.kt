@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.os.PersistableBundle
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.broquel.cripto.ErroCripto
@@ -52,6 +53,7 @@ data class Ui(
     val apelido: String = "",
     val nomeDigitado: String = "",
     val apelidoDigitado: String = "",
+    val saidaSemServidor: Boolean = false,
 )
 
 data class LinhaItem(val id: ByteArray, val titulo: String, val usuario: String, val conflito: Boolean)
@@ -66,6 +68,8 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
     private var limparClipboard: Job? = null
     private var bloquear: Job? = null
     private var gravacaoAdiada: Job? = null
+    /** Token da última sincronização, só em memória. Some ao travar. */
+    private var ultimoToken: String? = null
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -96,7 +100,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
             estado = estado.copy(
                 cabecalho = cabecalho,
                 cofreId = "",
-                aparelhoId = bytesParaHex(SecureRandom().generateSeed(16)),
+                aparelhoId = bytesParaHex(ByteArray(16).also { SecureRandom().nextBytes(it) }),
                 biometria = false,
             )
             app.sessao = sessao
@@ -170,7 +174,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         val agora = System.currentTimeMillis()
         val existente = _ui.value.editandoId?.let { id -> estado.itens.first { it.meta.itemId.contentEquals(id) } }
         val meta = if (existente == null) {
-            MetadadosItem(sessao.cofreId, SecureRandom().generateSeed(16), 1, agora, agora, false)
+            MetadadosItem(sessao.cofreId, ByteArray(16).also { SecureRandom().nextBytes(it) }, 1, agora, agora, false)
         } else {
             existente.meta.copy(revisao = existente.meta.revisao + 1, atualizadoEm = agora, apagado = false)
         }
@@ -195,9 +199,20 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         publicar { comoLista(sessao) }
     }
 
-    fun copiar(texto: String) {
+    /**
+     * Copia e limpa depois de 45 segundos. Com `sensivel`, o Android 13+ não mostra o texto
+     * na prévia da área de transferência nem o sugere no teclado.
+     */
+    fun copiar(texto: String, sensivel: Boolean = true) {
+        if (texto.isEmpty()) return
         val clipboard = app.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText("broquel", texto))
+        val clip = ClipData.newPlainText("broquel", texto)
+        if (sensivel) {
+            clip.description.extras = PersistableBundle().apply {
+                putBoolean("android.content.extra.IS_SENSITIVE", true)
+            }
+        }
+        clipboard.setPrimaryClip(clip)
         limparClipboard?.cancel()
         limparClipboard = viewModelScope.launch {
             delay(45_000)
@@ -236,6 +251,13 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         publicar { copy(senhaGerada = senha) }
     }
 
+    /** Gera direto no editor, sem perder o item que está sendo editado. */
+    fun gerarParaEditor() {
+        val sodium = app.motor.sodium
+        val senha = gerarSenha(_ui.value.nivel, _ui.value.comprimento) { teto -> sodium.randomBytesUniform(teto).toInt() }
+        publicar { copy(editor = editor.copy(senha = senha), aviso = "Senha gerada. Salve o item para guardar.") }
+    }
+
     fun usarSenhaGerada() {
         publicar { copy(tela = "editor", editor = _ui.value.editor.copy(senha = _ui.value.senhaGerada), editandoId = null) }
     }
@@ -260,8 +282,13 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
     fun salvarNome() {
         val sessaoAtual = app.sessao ?: return
         val nome = _ui.value.nomeDigitado.trim()
-        if (nome.length > 40) {
+        // Mesma regra do site (normalizarNome): 40 pontos de código, sem caractere de controle.
+        if (nome.codePointCount(0, nome.length) > 40) {
             publicar { copy(erro = "O nome do cofre passa de 40 caracteres.") }
+            return
+        }
+        if (nome.any { it.code < 0x20 }) {
+            publicar { copy(erro = "O nome do cofre tem um caractere inválido.") }
             return
         }
         trabalhar {
@@ -283,7 +310,8 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
     }
 
     fun salvarApelido() {
-        val apelido = _ui.value.apelidoDigitado.trim().take(40)
+        val digitado = _ui.value.apelidoDigitado.trim().filter { it.code >= 0x20 }
+        val apelido = digitado.take(digitado.offsetByCodePoints(0, minOf(40, digitado.codePointCount(0, digitado.length))))
         estado = estado.copy(apelido = apelido)
         if (!gravarNaTela()) return
         publicar { copy(apelido = apelido, aviso = "Apelido guardado só neste celular. Ele não vai para o servidor.") }
@@ -338,13 +366,15 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
     fun sincronizar() {
         val sessao = app.sessao ?: return
         trabalhar {
-            estado = Sincronizador().sincronizar(estado, sessao, _ui.value.codigoTotp.ifBlank { null })
+            val sincronizador = sincronizadorPara(sessao)
+            estado = sincronizador.sincronizar(estado, sessao, _ui.value.codigoTotp.ifBlank { null })
+            ultimoToken = sincronizador.ultimoToken
             gravar()
             publicar { comoLista(sessao).copy(aviso = "Sincronizado.") }
         }
     }
 
-    fun pedirSaida() = publicar { copy(tela = "sair", erro = "") }
+    fun pedirSaida() = publicar { copy(tela = "sair", erro = "", saidaSemServidor = false) }
 
     fun sairDoAparelho(sincronizarAntes: Boolean) {
         val sessaoAtual = app.sessao
@@ -353,30 +383,63 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
             return
         }
         trabalhar {
+            val codigo = _ui.value.codigoTotp.ifBlank { null }
+            val sincronizador = sincronizadorPara(sessaoAtual)
             if (sincronizarAntes) {
-                estado = Sincronizador().sincronizar(estado, sessaoAtual, _ui.value.codigoTotp.ifBlank { null })
+                estado = sincronizador.sincronizar(estado, sessaoAtual, codigo)
+                ultimoToken = sincronizador.ultimoToken
                 gravar()
             }
-            Sincronizador().encerrar(estado, sessaoAtual, _ui.value.codigoTotp.ifBlank { null })
-            app.filesDir.resolve("bio.dat").delete()
-            banco.apagar()
-            estado = EstadoBanco()
-            app.travar()
-            publicar {
-                copy(
-                    tela = "inicio",
-                    itens = emptyList(),
-                    identificador = "",
-                    senha = "",
-                    kit = "",
-                    aviso = "Este aparelho saiu do cofre.",
-                    biometria = false,
-                )
+            try {
+                sincronizador.encerrar(estado, sessaoAtual, codigo, ultimoToken)
+            } catch (erro: ErroRede) {
+                if (erro.codigo == "segundo_fator") throw erro
+                publicar { copy(saidaSemServidor = true, erro = "O servidor não encerrou a sessão (${erro.message}). Você pode apagar só deste celular.") }
+                return@trabalhar
+            } catch (erro: Exception) {
+                publicar { copy(saidaSemServidor = true, erro = "Sem conexão com o servidor. Você pode apagar só deste celular e revogar a sessão depois, de outro aparelho.") }
+                return@trabalhar
             }
+            apagarDesteAparelho("Este aparelho saiu do cofre.")
         }
     }
 
+    /** Apaga a cópia local sem falar com o servidor. A sessão deste aparelho continua válida lá até ser revogada. */
+    fun sairSoDaqui() {
+        trabalhar {
+            apagarDesteAparelho("A cópia deste celular foi apagada. Revogue a sessão dele em Ajustes, de outro aparelho.")
+        }
+    }
+
+    private fun apagarDesteAparelho(aviso: String) {
+        app.filesDir.resolve("bio.dat").delete()
+        runCatching { guarda.apagarBiometria() }
+        banco.apagar()
+        estado = EstadoBanco()
+        ultimoToken = null
+        app.travar()
+        publicar {
+            copy(
+                tela = "inicio",
+                itens = emptyList(),
+                identificador = "",
+                senha = "",
+                kit = "",
+                nomeCofre = "",
+                apelido = "",
+                codigoTotp = "",
+                aviso = aviso,
+                biometria = false,
+                saidaSemServidor = false,
+            )
+        }
+    }
+
+    private fun sincronizadorPara(sessao: SessaoCripto): Sincronizador =
+        Sincronizador(idNome(app.motor.sodium, sessao.cofreId))
+
     fun travarAgora() {
+        ultimoToken = null
         app.travar()
         publicar { copy(tela = if (estado.cabecalho.isEmpty()) "inicio" else "desbloquear", itens = emptyList(), senha = "") }
     }
