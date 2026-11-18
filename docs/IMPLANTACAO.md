@@ -187,6 +187,21 @@ cd android && ./gradlew :app:assembleRelease
 
 O APK sai em `android/app/build/outputs/apk/release/`. Sem essas variáveis o Gradle ainda gera o pacote ofuscado, mas sem assinatura de publicação. Não use o APK de debug no dia a dia: ele é depurável e aceita endereço sem HTTPS.
 
+### APK assinado pelo GitHub Actions
+
+O APK de debug do CI é assinado com uma chave nova a cada execução. O Android recusa instalar uma atualização assinada com outra chave, então cada APK de debug novo exige desinstalar o anterior, o que apaga a cópia local do cofre. Sincronize antes.
+
+Para o CI gerar um APK que atualiza por cima, cadastre a loja como segredo do repositório, em Settings, Secrets and variables, Actions:
+
+| Segredo | Valor |
+| --- | --- |
+| `BROQUEL_KEYSTORE_B64` | o arquivo `broquel.keystore` em base64 (`base64 -w0 broquel.keystore` no Linux, `[Convert]::ToBase64String([IO.File]::ReadAllBytes("broquel.keystore"))` no PowerShell) |
+| `BROQUEL_KEYSTORE_SENHA` | a senha da loja |
+| `BROQUEL_KEY_ALIAS` | `broquel` |
+| `BROQUEL_KEY_SENHA` | a senha da chave |
+
+Com isso, cada execução publica também o artefato `broquel-release`. O `versionCode` sobe a cada execução (`100 +` o número dela). O release recusa HTTP: o servidor precisa estar em HTTPS. Guarde a loja e as senhas fora do Git e com cópia de segurança: sem a mesma chave, o celular não aceita mais atualizações.
+
 ## aaPanel
 
 O caminho é o mesmo, com os cliques do painel:

@@ -1,0 +1,6 @@
+# Scripts de shell precisam de LF mesmo num clone no Windows.
+*.sh text eol=lf
+android/gradlew text eol=lf
+*.bat text eol=crlf
+*.png binary
+*.jar binary

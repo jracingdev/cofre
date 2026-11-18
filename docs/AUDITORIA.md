@@ -44,24 +44,8 @@ O servidor continua sem a senha mestra, sem a chave do cofre e sem o conteúdo. 
 | Baixa | O release não ofuscava e não tinha caminho de assinatura. | O R8 está ligado no release, com regras para não quebrar o libsodium. A assinatura lê `BROQUEL_KEYSTORE` e as senhas do ambiente. O passo está em [IMPLANTACAO.md](IMPLANTACAO.md). A loja não entra no Git. |
 | Baixa | A chave biométrica continuava válida se a pessoa cadastrasse outra digital, e podia ser usada com a tela do aparelho bloqueada. | A chave exige aparelho desbloqueado e é invalidada quando o conjunto de digitais muda. |
 | Baixa | `org.json` 20240303 tem um esgotamento ao ler um número enorme (`GHSA-ghc9-756g-vrcv`). Um servidor mentiroso podia travar o aplicativo com um JSON gigante. | A dependência foi para 20260719. O CI consulta o OSV. |
-
-## O que o CI passou a barrar
-
-Em cada envio para o GitHub:
-
-- `composer audit` da biblioteca PHP e do servidor.
-- `npm audit --omit=dev` da biblioteca TypeScript e do site. Isso olha o que vai no pacote publicado, não a ferramenta de build.
-- Consulta ao OSV das dependências diretas do Android (`scripts/auditar-gradle.py`).
-- `lint` do Android, no mesmo job que gera o APK de debug.
-
-O conjunto local é `scripts/auditar.sh`.
-
-## O que ainda recomenda
-
-- Uma auditoria externa, de quem não escreveu o Broquel, relendo o formato, as três implementações e o servidor.
-- Não tratar o TOTP como segredo de conhecimento zero. O servidor precisa do segredo para conferir o código. Proteja a `APP_KEY` como se ela abrisse o segundo fator.
-- No navegador, texto em JavaScript não zera de verdade: a string é imutável. As chaves binárias passam por `memzero`. O que resta é o título e a senha que estavam na tela, até o coletor de lixo.
-- O preenchimento automático entrega a senha ao campo que a pessoa escolhe na lista do sistema. Uma tela falsa não recebe a senha sozinha, mas a pessoa pode tocar no item errado.
-- O Vite, usado só para montar o site, ainda puxa `picomatch` com um aviso de expressão regular lenta. Isso não entra em `/app/`. O `npm audit` de produção passa limpo. Não há versão do Vite, nesta data, que solte essa dependência sem trocar a ferramenta.
-- O release assinado não é gerado no CI, porque a loja de chaves não pode estar no repositório. Quem publica segue o passo da implantação.
-- O teste instrumentado do Android continua no repositório e não roda no CI: não há emulador nesse fluxo. O que roda é o teste de unidade, o lint e o APK de debug.
+| Alta | No Android, a cópia local era cifrada com IV escolhido pelo app numa chave do Keystore, que recusa isso. Nenhuma gravação funcionava: o app fechava ao digitar o servidor e o cofre criado não ficava salvo. | O IV vem do Keystore. A gravação usa arquivo temporário e não roda mais a cada tecla na thread da tela. |
+| Média | O servidor aceitava o mesmo código TOTP mais de uma vez dentro da janela. | O último passo aceito fica gravado. Código repetido, ou de passo anterior, é recusado (RFC 6238, 5.2). |
+| Média | Nome do cofre editado nos dois lados: o site tratava o item como login e toda sincronização seguinte falhava; o Android criava um login vazio. | Vale a edição mais recente. Teste no site cobre os dois sentidos. |
+| Baixa | O Sair fazia login de novo, pedindo o código TOTP outra vez, e não funcionava sem rede. Ao sair, a chave biométrica ficava no Keystore. | O Sair reaproveita o token da sincronização. Sem servidor, oferece apagar só deste aparelho. A chave biométrica é apagada. |
+| Baixa | A senha do item aparecia em claro no editor. A cópia não era marcada como sensível. | Senha escondida por padrão, com Mostrar. No Android 13+, a cópia é marcada como sensível. |
