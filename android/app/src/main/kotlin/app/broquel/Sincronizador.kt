@@ -9,12 +9,19 @@ import org.json.JSONObject
 import java.security.SecureRandom
 import java.util.Base64
 
-class Sincronizador {
+/**
+ * @param idDoNome identificador fixo do item com o nome do cofre (`idNome`). Esse item não vira cópia de conflito.
+ */
+class Sincronizador(private val idDoNome: ByteArray = ByteArray(0)) {
+    /** Token da última sincronização. O Sair usa este antes de entrar de novo. */
+    var ultimoToken: String? = null
+        private set
+
     fun sincronizar(estado: EstadoBanco, sessao: SessaoCripto, codigoTotp: String?): EstadoBanco {
         if (estado.url.isBlank()) throw ErroRede("rede", "Informe o endereço do servidor.")
         val cliente = ClienteSync(estado.url, pinsDe(estado.pins))
         var atual = estado
-        if (atual.aparelhoId.isBlank()) atual = atual.copy(aparelhoId = bytesParaHex(SecureRandom().generateSeed(16)))
+        if (atual.aparelhoId.isBlank()) atual = atual.copy(aparelhoId = bytesParaHex(ByteArray(16).also { SecureRandom().nextBytes(it) }))
         if (atual.cofreId.isBlank()) atual = atual.copy(cofreId = cliente.registrar(atual.cabecalho))
         val (desafioId, desafio) = cliente.desafio(atual.cofreId)
         val resposta = cliente.responder(desafioId, sessao.assinarDesafio(desafio), atual.aparelhoId)
@@ -27,6 +34,7 @@ class Sincronizador {
         } else {
             resposta.getString("token")
         }
+        ultimoToken = token
         var itens = atual.itens
         repeat(2) {
             val proximos = mutableListOf<ItemGuardado>()
@@ -66,13 +74,25 @@ class Sincronizador {
         return atual.copy(itens = itens, cursor = cursor)
     }
 
-    /** Abre uma sessão só para revogar as deste aparelho. Não envia itens. */
-    fun encerrar(estado: EstadoBanco, sessao: SessaoCripto, codigoTotp: String?) {
+    /**
+     * Revoga as sessões deste aparelho. Não envia itens.
+     * Usa o token que já existe, se ainda valer: o mesmo código TOTP não vale duas vezes no servidor.
+     */
+    fun encerrar(estado: EstadoBanco, sessao: SessaoCripto, codigoTotp: String?, tokenAtual: String? = ultimoToken) {
         if (estado.url.isBlank() || estado.cofreId.isBlank()) return
         val cliente = ClienteSync(estado.url, pinsDe(estado.pins))
-        val aparelho = if (estado.aparelhoId.isBlank()) bytesParaHex(SecureRandom().generateSeed(16)) else estado.aparelhoId
+        if (!tokenAtual.isNullOrBlank()) {
+            try {
+                cliente.sair(tokenAtual)
+                return
+            } catch (erro: ErroRede) {
+                if (erro.codigo != "autenticacao_falhou") throw erro
+            }
+        }
+        // Sem identificador, este aparelho nunca entrou: não há sessão dele no servidor.
+        if (estado.aparelhoId.isBlank()) return
         val (desafioId, desafio) = cliente.desafio(estado.cofreId)
-        val resposta = cliente.responder(desafioId, sessao.assinarDesafio(desafio), aparelho)
+        val resposta = cliente.responder(desafioId, sessao.assinarDesafio(desafio), estado.aparelhoId)
         val token = if (resposta.optString("estado") == "segundo_fator") {
             if (codigoTotp.isNullOrBlank()) throw ErroRede("segundo_fator", "Informe o código TOTP.")
             if (!resposta.optJSONArray("metodos")?.toString().orEmpty().contains("totp")) {
@@ -93,20 +113,15 @@ class Sincronizador {
         val adotado = remotoParaItem(remoto).copy(pendente = false)
         return when (decidirConflito(local.meta.apagado, remoto.getBoolean("apagado"), igual, mesmaBase)) {
             AcaoConflito.AdotarServidor, AcaoConflito.ReenviarEdicaoServidor -> listOf(adotado)
-            AcaoConflito.ReenviarEdicaoLocal -> {
-                val aberto = sessao.decifrarItem(local.blob)
-                val meta = aberto.metadados.copy(
-                    revisao = remoto.getInt("revisao") + 1,
-                    atualizadoEm = System.currentTimeMillis(),
-                    apagado = false,
-                )
-                listOf(local.copy(meta = meta, blob = sessao.cifrarItem(meta, aberto.conteudo), pendente = true, revisaoBase = remoto.getInt("revisao")))
-            }
-            AcaoConflito.Bifurcar -> {
+            AcaoConflito.ReenviarEdicaoLocal -> listOf(reenviar(local, remoto, sessao))
+            // O nome do cofre tem identificador fixo e não é login: vale a edição mais recente.
+            AcaoConflito.Bifurcar -> if (ehNome(local)) {
+                if (local.meta.atualizadoEm > remoto.getLong("atualizado_em")) listOf(reenviar(local, remoto, sessao)) else listOf(adotado)
+            } else {
                 val aberto = sessao.decifrarItem(local.blob)
                 val conteudo = conteudoDe(aberto.conteudo).copy(conflitoDe = bytesParaHex(local.meta.itemId))
                 val meta = aberto.metadados.copy(
-                    itemId = SecureRandom().generateSeed(16),
+                    itemId = ByteArray(16).also { SecureRandom().nextBytes(it) },
                     revisao = 1,
                     criadoEm = System.currentTimeMillis(),
                     atualizadoEm = System.currentTimeMillis(),
@@ -115,6 +130,19 @@ class Sincronizador {
                 listOf(adotado, ItemGuardado(meta, sessao.cifrarItem(meta, conteudo.paraBytes()), 0, true, 0))
             }
         }
+    }
+
+    private fun ehNome(item: ItemGuardado): Boolean =
+        idDoNome.isNotEmpty() && item.meta.itemId.contentEquals(idDoNome)
+
+    private fun reenviar(local: ItemGuardado, remoto: JSONObject, sessao: SessaoCripto): ItemGuardado {
+        val aberto = sessao.decifrarItem(local.blob)
+        val meta = aberto.metadados.copy(
+            revisao = remoto.getInt("revisao") + 1,
+            atualizadoEm = System.currentTimeMillis(),
+            apagado = local.meta.apagado,
+        )
+        return local.copy(meta = meta, blob = sessao.cifrarItem(meta, aberto.conteudo), pendente = true, revisaoBase = remoto.getInt("revisao"))
     }
 
     private fun fundir(itens: List<ItemGuardado>, remoto: JSONObject): List<ItemGuardado> {

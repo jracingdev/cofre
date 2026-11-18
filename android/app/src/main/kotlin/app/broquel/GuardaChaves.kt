@@ -19,6 +19,11 @@ class GuardaChaves(private val contexto: Context) {
 
     fun temBiometria(): Boolean = loja.containsAlias("broquel.bio")
 
+    /** Apaga a chave biométrica. Usado ao sair do aparelho. */
+    fun apagarBiometria() {
+        if (loja.containsAlias("broquel.bio")) loja.deleteEntry("broquel.bio")
+    }
+
     fun prepararBiometria() {
         obterOuCriar("broquel.bio", biometria = true)
     }

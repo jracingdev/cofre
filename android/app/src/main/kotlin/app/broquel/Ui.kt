@@ -68,7 +68,7 @@ fun App(modelo: Modelo) {
                 "editor" -> Editor(ui, modelo)
                 "gerador" -> GeradorTela(ui, modelo)
                 "ajustes" -> Ajustes(ui, modelo)
-                "sair" -> Saida(modelo)
+                "sair" -> Saida(ui, modelo)
             }
         }
     }
@@ -218,11 +218,14 @@ private fun Ajustes(ui: Ui, modelo: Modelo) {
 }
 
 @Composable
-private fun Saida(modelo: Modelo) {
+private fun Saida(ui: Ui, modelo: Modelo) {
     Text("Sair apaga o cofre neste celular e encerra a sessão deste aparelho. O cofre no servidor continua.")
     Text("O que ainda não foi sincronizado será perdido.")
-    Button(onClick = { modelo.sairDoAparelho(true) }) { Text("Sincronizar e sair") }
-    TextButton(onClick = { modelo.sairDoAparelho(false) }) { Text("Sair sem sincronizar") }
+    Button(onClick = { modelo.sairDoAparelho(true) }, enabled = !ui.ocupado) { Text("Sincronizar e sair") }
+    TextButton(onClick = { modelo.sairDoAparelho(false) }, enabled = !ui.ocupado) { Text("Sair sem sincronizar") }
+    if (ui.saidaSemServidor) {
+        TextButton(onClick = modelo::sairSoDaqui, enabled = !ui.ocupado) { Text("Apagar só deste celular") }
+    }
     TextButton(onClick = { modelo.ir("ajustes") }) { Text("Cancelar") }
 }
 
