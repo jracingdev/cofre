@@ -1,7 +1,6 @@
 package app.broquel
 
 import java.io.File
-import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
@@ -21,14 +20,27 @@ class BancoCifrado(private val arquivo: File, private val chave: SecretKey) {
 
     fun apagar() {
         if (arquivo.exists()) arquivo.delete()
+        File(arquivo.parentFile, arquivo.name + ".tmp").delete()
     }
 
+    /**
+     * O Android Keystore não aceita IV escolhido pelo app ao cifrar (Caller-provided IV not permitted).
+     * O IV é sorteado pelo próprio Keystore e lido de volta da cifra.
+     * A gravação vai para um arquivo temporário e depois troca o nome, para não deixar o banco pela metade.
+     */
+    @Synchronized
     fun gravar(estado: EstadoBanco) {
-        val iv = ByteArray(12).also { SecureRandom().nextBytes(it) }
         val cifra = Cipher.getInstance("AES/GCM/NoPadding")
-        cifra.init(Cipher.ENCRYPT_MODE, chave, GCMParameterSpec(128, iv))
-        val corpo = cifra.doFinal(estado.paraJson().toByteArray())
+        cifra.init(Cipher.ENCRYPT_MODE, chave)
+        val iv = cifra.iv
+        check(iv != null && iv.size == 12) { "IV inesperado do Keystore." }
+        val corpo = cifra.doFinal(estado.paraJson().toByteArray(Charsets.UTF_8))
         arquivo.parentFile?.mkdirs()
-        arquivo.writeBytes(iv + corpo)
+        val temporario = File(arquivo.parentFile, arquivo.name + ".tmp")
+        temporario.writeBytes(iv + corpo)
+        if (!temporario.renameTo(arquivo)) {
+            arquivo.writeBytes(iv + corpo)
+            temporario.delete()
+        }
     }
 }

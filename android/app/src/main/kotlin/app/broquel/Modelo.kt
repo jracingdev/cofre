@@ -65,6 +65,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
     val ui: StateFlow<Ui> = _ui
     private var limparClipboard: Job? = null
     private var bloquear: Job? = null
+    private var gravacaoAdiada: Job? = null
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -135,7 +136,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
     fun guardarBio(cifrado: ByteArray) {
         app.filesDir.resolve("bio.dat").writeBytes(cifrado)
         estado = estado.copy(biometria = true)
-        gravar()
+        if (!gravarNaTela()) return
         publicar { copy(biometria = true, aviso = "Biometria ligada.") }
     }
 
@@ -176,7 +177,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         val blob = sessao.cifrarItem(meta, editor.copy(conflitoDe = existente?.let { conteudoDe(sessao.decifrarItem(it.blob).conteudo).conflitoDe }).paraBytes())
         val guardado = ItemGuardado(meta, blob, existente?.cursor ?: 0, true, existente?.meta?.revisao ?: 0)
         estado = estado.copy(itens = estado.itens.filterNot { it.meta.itemId.contentEquals(meta.itemId) } + guardado)
-        gravar()
+        if (!gravarNaTela()) return
         publicar { comoLista(sessao) }
     }
 
@@ -190,7 +191,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
             itens = estado.itens.filterNot { it.meta.itemId.contentEquals(id) } +
                 ItemGuardado(meta, blob, existente.cursor, true, existente.meta.revisao),
         )
-        gravar()
+        if (!gravarNaTela()) return
         publicar { comoLista(sessao) }
     }
 
@@ -284,11 +285,16 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
     fun salvarApelido() {
         val apelido = _ui.value.apelidoDigitado.trim().take(40)
         estado = estado.copy(apelido = apelido)
-        gravar()
+        if (!gravarNaTela()) return
         publicar { copy(apelido = apelido, aviso = "Apelido guardado só neste celular. Ele não vai para o servidor.") }
     }
 
-    fun definirUrl(valor: String) { estado = estado.copy(url = valor); gravar(); publicar { copy(url = valor) } }
+    fun definirUrl(valor: String) {
+        val limpo = valor.trim().take(200)
+        estado = estado.copy(url = limpo)
+        publicar { copy(url = limpo, erro = "") }
+        gravarDepois()
+    }
 
     fun definirIdentificadorRemoto(valor: String) {
         val limpo = valor.lowercase().filter { it.isDigit() || it in 'a'..'f' }.take(32)
@@ -311,8 +317,18 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
             publicar { copy(tela = "desbloquear", identificador = id, aviso = "Cabeçalho recebido. Abra com a senha mestra.", erro = "") }
         }
     }
-    fun definirPins(valor: String) { estado = estado.copy(pins = valor); gravar(); publicar { copy(pins = valor) } }
-    fun definirBloqueio(segundos: Int) { estado = estado.copy(bloqueioSegundos = segundos); gravar(); publicar { copy(bloqueioSegundos = segundos) } }
+    fun definirPins(valor: String) {
+        val limpo = valor.take(2000)
+        estado = estado.copy(pins = limpo)
+        publicar { copy(pins = limpo) }
+        gravarDepois()
+    }
+
+    fun definirBloqueio(segundos: Int) {
+        estado = estado.copy(bloqueioSegundos = segundos)
+        publicar { copy(bloqueioSegundos = segundos) }
+        gravarDepois()
+    }
     fun definirCodigo(valor: String) = publicar { copy(codigoTotp = valor.filter { it.isDigit() }.take(6)) }
     fun definirSenha(valor: String) = publicar { copy(senha = valor, erro = "") }
     fun definirConfirmacao(valor: String) = publicar { copy(confirmacao = valor) }
@@ -400,8 +416,32 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
             LinhaItem(item.meta.itemId, conteudo.titulo.ifBlank { "Sem título" }, conteudo.usuario, conteudo.conflitoDe != null)
         }
 
+    /** Grava a cópia local. Lança em caso de falha: use dentro de `trabalhar`. */
     private fun gravar() {
+        gravacaoAdiada?.cancel()
         banco.gravar(estado)
+    }
+
+    /** Grava na thread da tela sem derrubar o app. Devolve false e mostra o erro se falhar. */
+    private fun gravarNaTela(): Boolean = try {
+        gravar()
+        true
+    } catch (erro: Exception) {
+        publicar { copy(erro = "Não foi possível gravar a cópia local neste celular.") }
+        false
+    }
+
+    /** Campos digitados gravam um pouco depois da última tecla, fora da thread da tela. */
+    private fun gravarDepois() {
+        gravacaoAdiada?.cancel()
+        gravacaoAdiada = viewModelScope.launch(Dispatchers.IO) {
+            delay(500)
+            try {
+                banco.gravar(estado)
+            } catch (erro: Exception) {
+                publicar { copy(erro = "Não foi possível gravar a cópia local neste celular.") }
+            }
+        }
     }
 
     private fun trabalhar(bloco: () -> Unit) {
