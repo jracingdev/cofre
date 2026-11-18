@@ -77,6 +77,8 @@ jobs:
   android:
     name: Android
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       TEM_LOJA: ${{ secrets.BROQUEL_KEYSTORE_B64 != '' && 'sim' || 'nao' }}
     steps:
@@ -128,3 +130,26 @@ jobs:
           name: broquel-release
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+      # Cada envio para a main publica o APK numa Release. O link fixo
+      # https://github.com/jracingdev/cofre/releases/latest/download/broquel.apk
+      # instala direto no celular, sem zip. Com a loja cadastrada, vai o APK de release
+      # assinado; sem ela, o de debug.
+      - name: Publicar APK na Release
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$TEM_LOJA" = "sim" ]; then
+            origem=android/app/build/outputs/apk/release/app-release.apk
+            tipo="release assinado"
+          else
+            origem=android/app/build/outputs/apk/debug/app-debug.apk
+            tipo="debug (aceita HTTP; não use no dia a dia)"
+          fi
+          cp "$origem" broquel.apk
+          versao="android-1.0.${GITHUB_RUN_NUMBER}"
+          gh release create "$versao" broquel.apk \
+            --target "$GITHUB_SHA" \
+            --title "Broquel Android 1.0.${GITHUB_RUN_NUMBER}" \
+            --notes "APK ${tipo}, gerado do commit ${GITHUB_SHA}. Link fixo da última versão: https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/broquel.apk" \
+            --latest
