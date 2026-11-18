@@ -79,7 +79,7 @@ export function desenhar(raiz: HTMLElement, vista: Vista, rascunho: Rascunho, ac
   const moldura = el('main', 'moldura');
   const marca = el('div', 'marca');
   const icone = document.createElement('img');
-  icone.src = 'escudo.svg';
+  icone.src = 'logo.png';
   icone.alt = 'Broquel';
   icone.width = 52;
   icone.height = 52;
@@ -174,7 +174,12 @@ function novaSenha(rascunho: Rascunho, acoes: Acoes): HTMLElement {
 
 function abrir(vista: Vista, rascunho: Rascunho, acoes: Acoes): HTMLElement {
   const bloco = el('section', 'pilha');
+  const logo = document.createElement('img');
+  logo.src = 'logo.png';
+  logo.alt = 'Broquel';
+  logo.className = 'logo-abertura';
   bloco.append(
+    logo,
     paragrafo(`Cofre ${vista.identificador}`, 'mudo'),
     campo('Senha mestra', 'password', rascunho.senha, (valor) => { rascunho.senha = valor; }),
     botao('Abrir', acoes.abrir, vista.ocupado),

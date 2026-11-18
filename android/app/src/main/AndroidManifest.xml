@@ -10,6 +10,7 @@
         android:dataExtractionRules="@xml/extracao"
         android:fullBackupContent="@xml/backup"
         android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="Broquel"
         android:networkSecurityConfig="@xml/rede"
         android:supportsRtl="true"

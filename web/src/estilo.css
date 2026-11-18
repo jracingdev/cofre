@@ -34,7 +34,15 @@ body {
   margin-bottom: 1rem;
 }
 
-.marca img { width: 3.25rem; height: 3.25rem; }
+.marca img { width: 3.25rem; height: 3.25rem; object-fit: contain; }
+
+.logo-abertura {
+  width: 9rem;
+  height: 9rem;
+  display: block;
+  margin: 0 auto;
+  object-fit: contain;
+}
 
 h1 { font-size: 1.6rem; margin: 0; }
 

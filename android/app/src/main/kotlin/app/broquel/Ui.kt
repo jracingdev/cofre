@@ -1,12 +1,14 @@
 package app.broquel
 
 import androidx.biometric.BiometricPrompt
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -23,7 +25,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -51,7 +56,10 @@ fun App(modelo: Modelo) {
             if (ui.erro.isNotBlank()) Text(ui.erro, color = Color(0xFFFFB4AB))
             if (ui.aviso.isNotBlank()) Text(ui.aviso)
             when (ui.tela) {
-                "carregando" -> Text("Abrindo o cofre local…")
+                "carregando" -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Logo(160.dp)
+                    Text("Abrindo o cofre local…")
+                }
                 "inicio" -> Inicio(ui, modelo)
                 "criar" -> Criar(ui, modelo)
                 "kit" -> Kit(ui, modelo)
@@ -94,6 +102,7 @@ private fun Kit(ui: Ui, modelo: Modelo) {
 
 @Composable
 private fun Desbloquear(ui: Ui, modelo: Modelo) {
+    Logo(160.dp)
     OutlinedTextField(ui.senha, modelo::definirSenha, label = { Text("Senha mestra") }, visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth())
     Button(onClick = modelo::desbloquear, enabled = !ui.ocupado) { Text("Abrir") }
     if (ui.identificador.isNotBlank()) {
@@ -198,6 +207,16 @@ private fun Ajustes(ui: Ui, modelo: Modelo) {
     }
     Text("O preenchimento automático fica em Ajustes do Android, senhas e preenchimento automático, Broquel.")
     TextButton(onClick = { modelo.ir("lista") }) { Text("Voltar") }
+}
+
+@Composable
+private fun Logo(tamanho: Dp) {
+    Image(
+        painter = painterResource(R.drawable.logo_broquel),
+        contentDescription = "Broquel",
+        modifier = Modifier.size(tamanho),
+        contentScale = ContentScale.Fit,
+    )
 }
 
 private fun autenticar(activity: FragmentActivity, cifra: Cipher, aoSucesso: (Cipher) -> Unit) {
