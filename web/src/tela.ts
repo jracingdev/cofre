@@ -35,6 +35,8 @@ export type Vista = {
   sessoes: Array<{ id: string; nome: string | null; revogada: boolean }>;
   nome: string;
   apelido: string;
+  /** O Sair não alcançou o servidor: a tela oferece apagar só daqui. */
+  saidaSemServidor: boolean;
 };
 
 export type Acoes = {
@@ -57,6 +59,7 @@ export type Acoes = {
   sincronizar(): void;
   travar(): void;
   sair(sincronizarAntes: boolean): void;
+  sairSoDaqui(): void;
   ir(tela: TelaNome): void;
   concluirFator(tipo: 'totp' | 'recuperacao' | 'webauthn'): void;
   iniciarTotp(): void;
@@ -321,8 +324,11 @@ function confirmarSaida(vista: Vista, _rascunho: Rascunho, acoes: Acoes): HTMLEl
     paragrafo('O que ainda não foi sincronizado será perdido. Se puder, sincronize antes.', 'mudo'),
     botao('Sincronizar e sair', () => acoes.sair(true), vista.ocupado),
     botao('Sair sem sincronizar', () => acoes.sair(false), vista.ocupado, true),
-    botao('Cancelar', () => acoes.ir('lista'), false, true),
   );
+  if (vista.saidaSemServidor) {
+    bloco.append(botao('Apagar só deste navegador', acoes.sairSoDaqui, vista.ocupado, true));
+  }
+  bloco.append(botao('Cancelar', () => acoes.ir('lista'), false, true));
   return bloco;
 }
 

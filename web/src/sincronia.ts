@@ -1,4 +1,4 @@
-import { lerCabecalho, zerarMemoria, type MetadadosItem, type SessaoCofre } from '@broquel/cripto';
+import { idDoNome, lerCabecalho, zerarMemoria, type MetadadosItem, type SessaoCofre } from '@broquel/cripto';
 import { bytesAleatorios, bytesIguais, deBase64, deHex, paraBase64, paraHex } from './codec.js';
 import { decidirConflito } from './conflito.js';
 import { lerLogin, serializarLogin } from './item.js';
@@ -184,19 +184,34 @@ export async function sincronizar(
   };
 }
 
-/** Entra só para revogar as sessões deste aparelho. Não envia nem baixa itens. */
+/**
+ * Revoga as sessões deste aparelho. Não envia nem baixa itens.
+ * Usa o token que já existe, se ainda valer. Só faz login de novo quando não há token,
+ * porque o mesmo código TOTP não vale duas vezes.
+ */
 export async function encerrarSessao(
   estado: EstadoSync,
   sessao: SessaoCofre,
   transporte: Transporte,
   fator: Fator | ((metodos: string[]) => Promise<Fator>) | null,
   relogio: Relogio = relogioReal(),
+  tokenAtual = '',
 ): Promise<void> {
   if (!estado.registrado || !estado.cofreId) return;
-  const aparelhoId = estado.aparelhoId || paraHex(relogio.aleatorio(16));
+  if (tokenAtual) {
+    try {
+      await transporte.sair(tokenAtual);
+      return;
+    } catch (erro) {
+      if (!(erro instanceof ErroSync) || erro.codigo !== 'autenticacao_falhou') throw erro;
+    }
+  }
+  // Sem identificador, este aparelho nunca entrou no servidor: não há sessão dele para revogar.
+  if (!estado.aparelhoId) return;
+  void relogio;
   const desafio = await transporte.desafio(estado.cofreId);
   const assinatura = await sessao.assinarDesafio(deBase64(desafio.desafio));
-  const resposta = await transporte.responder(desafio.desafio_id, paraBase64(assinatura), aparelhoId);
+  const resposta = await transporte.responder(desafio.desafio_id, paraBase64(assinatura), estado.aparelhoId);
   const token = await tokenDaResposta(resposta, transporte, fator);
   try {
     await transporte.sair(token);
@@ -231,33 +246,11 @@ async function resolver(local: ItemLocal, remoto: Cabeca | null, sessao: SessaoC
   const adotado = cabecaParaItem(remoto);
   const acao = decidirConflito(local.apagado, remoto.apagado, igual, mesmaBase);
   if (acao === 'adotar-servidor' || acao === 'reenviar-edicao-servidor') return [adotado];
-  if (acao === 'reenviar-edicao-local') {
-    const aberto = await sessao.decifrarItem(local.blob);
-    try {
-      const revisao = remoto.revisao + 1;
-      const atualizadoEm = relogio.agora();
-      const meta: MetadadosItem = {
-        cofreId: sessao.cofreId,
-        itemId: deHex(local.itemId),
-        revisao,
-        criadoEm: local.criadoEm,
-        atualizadoEm,
-        apagado: false,
-      };
-      const blob = await sessao.cifrarItem(meta, aberto.conteudo);
-      return [{
-        ...local,
-        revisao,
-        atualizadoEm,
-        apagado: false,
-        blob,
-        pendente: true,
-        revisaoBase: remoto.revisao,
-        maiorRevisao: Math.max(local.maiorRevisao, revisao),
-      }];
-    } finally {
-      zerarMemoria(aberto.conteudo);
-    }
+  if (acao === 'reenviar-edicao-local') return [await reenviar(local, remoto, sessao, relogio)];
+  // O item do nome do cofre não é um login e não pode virar cópia de conflito:
+  // o identificador dele é fixo. Vale a edição mais recente (docs/SINCRONIZACAO.md).
+  if (local.itemId === paraHex(await idDoNome(sessao.cofreId))) {
+    return local.atualizadoEm > BigInt(remoto.atualizado_em) ? [await reenviar(local, remoto, sessao, relogio)] : [adotado];
   }
   const aberto = await sessao.decifrarItem(local.blob);
   try {
@@ -289,6 +282,35 @@ async function resolver(local: ItemLocal, remoto: Cabeca | null, sessao: SessaoC
         maiorRevisao: 1,
       },
     ];
+  } finally {
+    zerarMemoria(aberto.conteudo);
+  }
+}
+
+/** Cifra de novo a edição local por cima da revisão do servidor. */
+async function reenviar(local: ItemLocal, remoto: Cabeca, sessao: SessaoCofre, relogio: Relogio): Promise<ItemLocal> {
+  const aberto = await sessao.decifrarItem(local.blob);
+  try {
+    const revisao = remoto.revisao + 1;
+    const atualizadoEm = relogio.agora();
+    const meta: MetadadosItem = {
+      cofreId: sessao.cofreId,
+      itemId: deHex(local.itemId),
+      revisao,
+      criadoEm: local.criadoEm,
+      atualizadoEm,
+      apagado: local.apagado,
+    };
+    const blob = await sessao.cifrarItem(meta, aberto.conteudo);
+    return {
+      ...local,
+      revisao,
+      atualizadoEm,
+      blob,
+      pendente: true,
+      revisaoBase: remoto.revisao,
+      maiorRevisao: Math.max(local.maiorRevisao, revisao),
+    };
   } finally {
     zerarMemoria(aberto.conteudo);
   }

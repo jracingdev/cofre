@@ -10,12 +10,13 @@ import {
   verificarAssinaturaDesafio,
 } from '@broquel/cripto';
 import { deBase64, paraBase64, paraHex } from '../src/codec.ts';
-import { alterarItem, excluirItem, incluirItem, lerConteudo } from '../src/itens.ts';
+import { alterarItem, excluirItem, gravarNome, incluirItem, lerConteudo, nomeDoCofre } from '../src/itens.ts';
 import { conteudoVazio } from '../src/item.ts';
 import { criarCliente } from '../src/cliente.ts';
 import {
   ConflitoSync,
   ErroSync,
+  encerrarSessao,
   sincronizar,
   type Cabeca,
   type EstadoSync,
@@ -108,6 +109,64 @@ test('o aplicativo e o site trocam o mesmo item, conflito e marca de exclusão',
 
   sessaoWeb.travar();
   sessaoApp.travar();
+});
+
+test('nome do cofre editado nos dois lados não vira login nem trava a sincronização', async () => {
+  const senha = 'correta-cavalo-bateria-broquel';
+  const criado = await criarCofre(senha, { parametros: PARAMETROS_KDF_TESTE, permitirParametrosFracos: true });
+  const servidor = new ServidorFalso();
+  const relogio = relogioFixo();
+  const sessaoWeb = criado.sessao;
+  const sessaoApp = await abrirCofre(criado.cabecalho, senha);
+  let web: EstadoSync = { cofreId: '', cabecalho: criado.cabecalho, cursor: 0, aparelhoId: '', registrado: false, itens: [], apelido: '' };
+  web.itens = await gravarNome(sessaoWeb, web.itens, 'Casa', 1_700_000_000_100n);
+  web = (await sincronizar(web, sessaoWeb, servidor, null, relogio)).estado;
+  let app: EstadoSync = { ...web, aparelhoId: paraHex(randomBytes(16)), cursor: 0, itens: [] };
+  app = (await sincronizar(app, sessaoApp, servidor, null, relogio)).estado;
+  assert.equal(await nomeDoCofre(sessaoApp, app.itens), 'Casa');
+
+  // O celular grava depois: vale o do celular.
+  web.itens = await gravarNome(sessaoWeb, web.itens, 'Site', 1_700_000_000_200n);
+  app.itens = await gravarNome(sessaoApp, app.itens, 'Celular', 1_700_000_000_300n);
+  app = (await sincronizar(app, sessaoApp, servidor, null, relogio)).estado;
+  web = (await sincronizar(web, sessaoWeb, servidor, null, relogio)).estado;
+  assert.equal(await nomeDoCofre(sessaoWeb, web.itens), 'Celular');
+  assert.equal(web.itens.length, 1);
+  assert.equal(web.itens[0]!.pendente, false);
+
+  // O site grava depois: vale o do site, e o celular recebe.
+  app.itens = await gravarNome(sessaoApp, app.itens, 'Celular 2', 1_700_000_000_400n);
+  web.itens = await gravarNome(sessaoWeb, web.itens, 'Site 2', 1_700_000_000_500n);
+  app = (await sincronizar(app, sessaoApp, servidor, null, relogio)).estado;
+  web = (await sincronizar(web, sessaoWeb, servidor, null, relogio)).estado;
+  assert.equal(await nomeDoCofre(sessaoWeb, web.itens), 'Site 2');
+  app = (await sincronizar(app, sessaoApp, servidor, null, relogio)).estado;
+  assert.equal(await nomeDoCofre(sessaoApp, app.itens), 'Site 2');
+  assert.equal(app.itens.length, 1);
+
+  sessaoWeb.travar();
+  sessaoApp.travar();
+});
+
+test('sair usa o token que já existe e não pede o segundo fator de novo', async () => {
+  const senha = 'correta-cavalo-bateria-broquel';
+  const criado = await criarCofre(senha, { parametros: PARAMETROS_KDF_TESTE, permitirParametrosFracos: true });
+  const servidor = new ServidorFalso();
+  const relogio = relogioFixo();
+  let web: EstadoSync = { cofreId: '', cabecalho: criado.cabecalho, cursor: 0, aparelhoId: '', registrado: false, itens: [], apelido: '' };
+  const primeira = await sincronizar(web, criado.sessao, servidor, null, relogio);
+  web = primeira.estado;
+  servidor.exigirTotp(web.cofreId, '123456');
+  // Sem o token, entrar de novo pediria o código.
+  await assert.rejects(
+    () => encerrarSessao(web, criado.sessao, servidor, null, relogio),
+    (erro: unknown) => erro instanceof ErroSync && erro.codigo === 'segundo_fator',
+  );
+  await encerrarSessao(web, criado.sessao, servidor, null, relogio, primeira.token);
+  await assert.rejects(() => servidor.itens(primeira.token, 0));
+  // Aparelho que nunca entrou não tem sessão para revogar.
+  await encerrarSessao({ ...web, aparelhoId: '' }, criado.sessao, servidor, null, relogio);
+  criado.sessao.travar();
 });
 
 test('o cliente só envia cabeçalho e blob', async () => {

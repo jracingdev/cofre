@@ -54,6 +54,7 @@ const vista: Vista = {
   sessoes: [],
   nome: '',
   apelido: '',
+  saidaSemServidor: false,
 };
 
 const rascunho: Rascunho = {
@@ -113,6 +114,7 @@ const acoes: Acoes = {
   sincronizar: () => { void sincronizarAgora(); },
   travar: () => travar(),
   sair: (sincronizarAntes) => { void sair(sincronizarAntes); },
+  sairSoDaqui: () => { void sairSoDaqui(); },
   ir,
   concluirFator: (tipo) => {
     const resolver = fatorPendente;
@@ -433,17 +435,36 @@ async function mostrarLista(): Promise<void> {
 
 async function sair(sincronizarAntes: boolean): Promise<void> {
   await ocupado(async () => {
+    vista.saidaSemServidor = false;
     if (sincronizarAntes && sessao) {
       const resultado = await sincronizar(estado, sessao, cliente, pedirFator, relogio);
       estado = resultado.estado;
       token = resultado.token;
+      await gravarDeposito(estado, bloqueioSegundos);
     }
     if (sessao) {
-      await encerrarSessao(estado, sessao, cliente, pedirFator, relogio);
+      try {
+        await encerrarSessao(estado, sessao, cliente, pedirFator, relogio, token);
+      } catch (erro) {
+        vista.saidaSemServidor = true;
+        throw new Error(`Não foi possível encerrar a sessão no servidor (${mensagem(erro)}). Você pode apagar só deste navegador e revogar a sessão depois, em Ajustes, de outro aparelho.`);
+      }
     }
     await apagarDeposito();
     esquecerCofreLocal();
     ir('inicio');
+    vista.aviso = 'Este navegador saiu do cofre.';
+  });
+}
+
+/** Apaga a cópia local sem falar com o servidor. A sessão deste aparelho continua válida lá. */
+async function sairSoDaqui(): Promise<void> {
+  await ocupado(async () => {
+    await apagarDeposito();
+    esquecerCofreLocal();
+    vista.saidaSemServidor = false;
+    ir('inicio');
+    vista.aviso = 'A cópia deste navegador foi apagada. Revogue a sessão dele em Ajustes, de outro aparelho.';
   });
 }
 
@@ -526,6 +547,7 @@ async function copiar(texto: string): Promise<void> {
 function ir(tela: TelaNome): void {
   vista.tela = tela;
   vista.erro = '';
+  if (tela === 'sair') vista.saidaSemServidor = false;
   if (tela === 'ajustes') {
     rascunho.nome = vista.nome;
     rascunho.apelido = vista.apelido;
