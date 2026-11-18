@@ -244,6 +244,10 @@ class ServidorFalso implements Transporte {
     throw new ErroSync('autenticacao_falhou', 'não');
   }
 
+  async sair(token: string): Promise<void> {
+    this.sessoes.delete(token);
+  }
+
   async itens(token: string, cursor: number): Promise<Pagina> {
     const mapa = this.guardados.get(this.exigirSessao(token))!;
     const lista = [...mapa.values()].filter((item) => item.cursor > cursor).sort((a, b) => a.cursor - b.cursor);

@@ -145,6 +145,15 @@ final class SincronizacaoTest extends TestCase
         $this->withServerVariables($pedido)->comToken($token)->getJson('/v1/itens')->assertStatus(429);
     }
 
+    public function test_sair_revoga_o_token_deste_aparelho(): void
+    {
+        [, $token] = $this->entrar();
+        $this->comToken($token)->getJson('/v1/itens')->assertOk();
+        $this->comToken($token)->postJson('/v1/auth/sair')->assertOk()->assertJsonPath('ok', true);
+        $this->comToken($token)->getJson('/v1/itens')->assertStatus(401);
+        $this->comToken($token)->postJson('/v1/auth/sair')->assertStatus(401);
+    }
+
     public function test_sessao_revogada_e_rede_restrita(): void
     {
         [, $token] = $this->entrar();

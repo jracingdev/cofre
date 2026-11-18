@@ -85,6 +85,7 @@ export type Transporte = {
   confirmarLogin(preToken: string, desafioId: string, credencial: unknown): Promise<string>;
   itens(token: string, cursor: number): Promise<Pagina>;
   gravar(token: string, itemId: string, revisaoBase: number, blobB64: string): Promise<Cabeca>;
+  sair(token: string): Promise<void>;
 };
 
 export type Relogio = {
@@ -179,6 +180,27 @@ export async function sincronizar(
     retrocesso: aviso.retrocesso,
     estado: { cofreId, cabecalho: estado.cabecalho, cursor, aparelhoId, registrado, itens },
   };
+}
+
+/** Entra só para revogar as sessões deste aparelho. Não envia nem baixa itens. */
+export async function encerrarSessao(
+  estado: EstadoSync,
+  sessao: SessaoCofre,
+  transporte: Transporte,
+  fator: Fator | ((metodos: string[]) => Promise<Fator>) | null,
+  relogio: Relogio = relogioReal(),
+): Promise<void> {
+  if (!estado.registrado || !estado.cofreId) return;
+  const aparelhoId = estado.aparelhoId || paraHex(relogio.aleatorio(16));
+  const desafio = await transporte.desafio(estado.cofreId);
+  const assinatura = await sessao.assinarDesafio(deBase64(desafio.desafio));
+  const resposta = await transporte.responder(desafio.desafio_id, paraBase64(assinatura), aparelhoId);
+  const token = await tokenDaResposta(resposta, transporte, fator);
+  try {
+    await transporte.sair(token);
+  } catch (erro) {
+    if (!(erro instanceof ErroSync) || erro.codigo !== 'autenticacao_falhou') throw erro;
+  }
 }
 
 async function tokenDaResposta(

@@ -275,6 +275,38 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         }
     }
 
+    fun pedirSaida() = publicar { copy(tela = "sair", erro = "") }
+
+    fun sairDoAparelho(sincronizarAntes: Boolean) {
+        val sessaoAtual = app.sessao
+        if (sessaoAtual == null) {
+            publicar { copy(erro = "Abra o cofre antes de sair.") }
+            return
+        }
+        trabalhar {
+            if (sincronizarAntes) {
+                estado = Sincronizador().sincronizar(estado, sessaoAtual, _ui.value.codigoTotp.ifBlank { null })
+                gravar()
+            }
+            Sincronizador().encerrar(estado, sessaoAtual, _ui.value.codigoTotp.ifBlank { null })
+            app.filesDir.resolve("bio.dat").delete()
+            banco.apagar()
+            estado = EstadoBanco()
+            app.travar()
+            publicar {
+                copy(
+                    tela = "inicio",
+                    itens = emptyList(),
+                    identificador = "",
+                    senha = "",
+                    kit = "",
+                    aviso = "Este aparelho saiu do cofre.",
+                    biometria = false,
+                )
+            }
+        }
+    }
+
     fun travarAgora() {
         app.travar()
         publicar { copy(tela = if (estado.cabecalho.isEmpty()) "inicio" else "desbloquear", itens = emptyList(), senha = "") }

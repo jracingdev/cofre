@@ -15,6 +15,15 @@ export async function lerDeposito(): Promise<{ estado: EstadoSync; bloqueioSegun
   }
 }
 
+export function apagarDeposito(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const pedido = indexedDB.deleteDatabase(BANCO);
+    pedido.onsuccess = () => resolve();
+    pedido.onerror = () => reject(pedido.error ?? new Error('Não foi possível apagar a cópia local.'));
+    pedido.onblocked = () => reject(new Error('Feche as outras abas do Broquel e tente sair de novo.'));
+  });
+}
+
 export async function gravarDeposito(estado: EstadoSync, bloqueioSegundos: number): Promise<void> {
   const arquivo = estadoParaArquivo(estado, bloqueioSegundos);
   const db = await abrir();

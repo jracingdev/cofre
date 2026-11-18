@@ -81,6 +81,17 @@ final class AuthController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function sair(Request $pedido): JsonResponse
+    {
+        /** @var CofreRegistro $cofre */
+        $cofre = $pedido->attributes->get('cofre');
+        /** @var SessaoAparelho $sessao */
+        $sessao = $pedido->attributes->get('sessao');
+        $this->autenticacao->sair($cofre, $sessao, $pedido);
+
+        return response()->json(['ok' => true]);
+    }
+
     private function cofre(mixed $id, Request $pedido): CofreRegistro
     {
         $id = Entrada::hex($id, 16);

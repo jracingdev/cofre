@@ -11,11 +11,11 @@ import {
 } from '@broquel/cripto';
 import { criarCliente } from './cliente.js';
 import { deBase64, paraHex } from './codec.js';
-import { gravarDeposito, lerDeposito } from './deposito.js';
+import { apagarDeposito, gravarDeposito, lerDeposito } from './deposito.js';
 import { alterarItem, excluirItem, incluirItem, lerConteudo } from './itens.js';
 import { apagarConteudo, conteudoVazio } from './item.js';
 import { copiarELimpar, criarVigia, type AreaTransferencia } from './memoria.js';
-import { ErroSync, estadoVazio, relogioReal, sincronizar, type Fator, type Transporte } from './sincronia.js';
+import { ErroSync, encerrarSessao, estadoVazio, relogioReal, sincronizar, type Fator, type Transporte } from './sincronia.js';
 import { credencialParaEnvio, opcoesDeCriacao, opcoesDeLogin, type OpcoesServidor } from './webauthn.js';
 import { desenhar, type Acoes, type Linha, type Rascunho, type TelaNome, type Vista } from './tela.js';
 import './estilo.css';
@@ -107,6 +107,7 @@ const acoes: Acoes = {
   },
   sincronizar: () => { void sincronizarAgora(); },
   travar: () => travar(),
+  sair: (sincronizarAntes) => { void sair(sincronizarAntes); },
   ir,
   concluirFator: (tipo) => {
     const resolver = fatorPendente;
@@ -399,6 +400,49 @@ async function mostrarLista(): Promise<void> {
     }
   }
   ir('lista');
+}
+
+async function sair(sincronizarAntes: boolean): Promise<void> {
+  await ocupado(async () => {
+    if (sincronizarAntes && sessao) {
+      const resultado = await sincronizar(estado, sessao, cliente, pedirFator, relogio);
+      estado = resultado.estado;
+      token = resultado.token;
+    }
+    if (sessao) {
+      await encerrarSessao(estado, sessao, cliente, pedirFator, relogio);
+    }
+    await apagarDeposito();
+    esquecerCofreLocal();
+    ir('inicio');
+  });
+}
+
+function esquecerCofreLocal(): void {
+  sessao?.travar();
+  sessao = null;
+  token = '';
+  estado = estadoVazio();
+  bloqueioSegundos = 60;
+  vista.bloqueioSegundos = 60;
+  vista.identificador = '';
+  vista.kit = '';
+  vista.senhaGerada = '';
+  vista.segredoTotp = '';
+  vista.uriTotp = '';
+  vista.codigos = [];
+  vista.linhas = [];
+  vista.sessoes = [];
+  vista.metodos = [];
+  linhas = [];
+  editandoId = null;
+  rascunho.identificador = '';
+  rascunho.kit = '';
+  rascunho.codigo = '';
+  limparSenhas();
+  apagarConteudo(rascunho.editor);
+  if (limpezaCopia) limpezaCopia.cancelar = true;
+  vigia.desarmar();
 }
 
 function travar(): void {

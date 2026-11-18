@@ -19,6 +19,10 @@ class BancoCifrado(private val arquivo: File, private val chave: SecretKey) {
         return estadoDeJson(cifra.doFinal(corpo).toString(Charsets.UTF_8))
     }
 
+    fun apagar() {
+        if (arquivo.exists()) arquivo.delete()
+    }
+
     fun gravar(estado: EstadoBanco) {
         val iv = ByteArray(12).also { SecureRandom().nextBytes(it) }
         val cifra = Cipher.getInstance("AES/GCM/NoPadding")

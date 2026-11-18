@@ -14,6 +14,7 @@ export type ClienteExtra = {
   confirmarRegistro(token: string, desafioId: string, credencial: unknown): Promise<void>;
   sessoes(token: string): Promise<Array<{ id: string; nome: string | null; revogada: boolean }>>;
   revogar(token: string, id: string): Promise<void>;
+  sair(token: string): Promise<void>;
 };
 
 class ClienteHttp implements Transporte, ClienteExtra {
@@ -127,6 +128,10 @@ class ClienteHttp implements Transporte, ClienteExtra {
 
   revogar(token: string, id: string): Promise<void> {
     return this.enviar('DELETE', `/sessoes/${id}`, null, token).then(() => undefined);
+  }
+
+  sair(token: string): Promise<void> {
+    return this.enviar('POST', '/auth/sair', {}, token).then(() => undefined);
   }
 
   private async enviar(metodo: string, caminho: string, corpo: Record<string, unknown> | null, token: string | null): Promise<Record<string, unknown>> {

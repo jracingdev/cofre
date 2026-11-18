@@ -68,6 +68,7 @@ fun App(modelo: Modelo) {
                 "editor" -> Editor(ui, modelo)
                 "gerador" -> GeradorTela(ui, modelo)
                 "ajustes" -> Ajustes(ui, modelo)
+                "sair" -> Saida(modelo)
             }
         }
     }
@@ -206,7 +207,17 @@ private fun Ajustes(ui: Ui, modelo: Modelo) {
         }) { Text("Ligar biometria") }
     }
     Text("O preenchimento automático fica em Ajustes do Android, senhas e preenchimento automático, Broquel.")
+    Button(onClick = modelo::pedirSaida) { Text("Sair deste aparelho") }
     TextButton(onClick = { modelo.ir("lista") }) { Text("Voltar") }
+}
+
+@Composable
+private fun Saida(modelo: Modelo) {
+    Text("Sair apaga o cofre neste celular e encerra a sessão deste aparelho. O cofre no servidor continua.")
+    Text("O que ainda não foi sincronizado será perdido.")
+    Button(onClick = { modelo.sairDoAparelho(true) }) { Text("Sincronizar e sair") }
+    TextButton(onClick = { modelo.sairDoAparelho(false) }) { Text("Sair sem sincronizar") }
+    TextButton(onClick = { modelo.ir("ajustes") }) { Text("Cancelar") }
 }
 
 @Composable

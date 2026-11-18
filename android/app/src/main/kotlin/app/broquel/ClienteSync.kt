@@ -69,6 +69,14 @@ class ClienteSync(urlBase: String, pins: List<String>) {
     fun itens(token: String, cursor: Long): JSONObject =
         enviar("GET", "/v1/itens?cursor=$cursor&limite=200", null, token)
 
+    fun sair(token: String) {
+        try {
+            enviar("POST", "/v1/auth/sair", JSONObject(), token)
+        } catch (erro: ErroRede) {
+            if (erro.codigo != "autenticacao_falhou") throw erro
+        }
+    }
+
     fun gravarItem(token: String, itemId: String, base: Int, blob: ByteArray): JSONObject {
         val corpo = JSONObject()
             .put("revisao_base", base)

@@ -142,6 +142,21 @@ final class Autenticacao
         $this->auditor->registrar($cofre->id, 'sessao.revogada', 'ok', $pedido, $sessao->aparelho_id);
     }
 
+    /** Encerra todas as sessões deste aparelho, inclusive a que fez o pedido. */
+    public function sair(CofreRegistro $cofre, SessaoAparelho $atual, Request $pedido): void
+    {
+        $agora = now();
+        SessaoAparelho::query()
+            ->where('cofre_id', $cofre->id)
+            ->where('aparelho_id', $atual->aparelho_id)
+            ->whereNull('revogada_em')
+            ->update([
+                'revogada_em' => $agora,
+                'updated_at' => $agora,
+            ]);
+        $this->auditor->registrar($cofre->id, 'auth.sair', 'ok', $pedido, $atual->aparelho_id);
+    }
+
     /** @return list<array<string, mixed>> */
     public function listar(CofreRegistro $cofre): array
     {

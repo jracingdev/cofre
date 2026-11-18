@@ -12,6 +12,7 @@ export type TelaNome =
   | 'editor'
   | 'gerador'
   | 'ajustes'
+  | 'sair'
   | 'segundo';
 
 export type Linha = { id: string; titulo: string; usuario: string; conflito: boolean };
@@ -53,6 +54,7 @@ export type Acoes = {
   comprimento(valor: number): void;
   sincronizar(): void;
   travar(): void;
+  sair(sincronizarAntes: boolean): void;
   ir(tela: TelaNome): void;
   concluirFator(tipo: 'totp' | 'recuperacao' | 'webauthn'): void;
   iniciarTotp(): void;
@@ -116,6 +118,8 @@ function corpo(vista: Vista, rascunho: Rascunho, acoes: Acoes): HTMLElement {
       return gerador(vista, acoes);
     case 'ajustes':
       return ajustes(vista, rascunho, acoes);
+    case 'sair':
+      return confirmarSaida(vista, rascunho, acoes);
     case 'segundo':
       return segundo(vista, rascunho, acoes);
     default:
@@ -199,6 +203,7 @@ function lista(vista: Vista, acoes: Acoes): HTMLElement {
     botao('Sincronizar', acoes.sincronizar, vista.ocupado, true),
     botao('Ajustes', () => acoes.ir('ajustes'), false, true),
     botao('Travar', acoes.travar, false, true),
+    botao('Sair', () => acoes.ir('sair'), false, true),
   );
   const itens = el('div', 'lista');
   if (vista.linhas.length === 0) itens.append(paragrafo('Nenhum item. O que foi apagado continua no servidor só como marca, sem o conteúdo.', 'mudo'));
@@ -294,6 +299,18 @@ function ajustes(vista: Vista, rascunho: Rascunho, acoes: Acoes): HTMLElement {
     bloco.append(linhaSessao);
   }
   bloco.append(botao('Voltar', () => acoes.ir('lista'), false, true));
+  return bloco;
+}
+
+function confirmarSaida(vista: Vista, _rascunho: Rascunho, acoes: Acoes): HTMLElement {
+  const bloco = el('section', 'pilha');
+  bloco.append(
+    paragrafo('Sair encerra a sessão neste navegador e apaga daqui o cabeçalho e os itens cifrados. O cofre no servidor continua.', ''),
+    paragrafo('O que ainda não foi sincronizado será perdido. Se puder, sincronize antes.', 'mudo'),
+    botao('Sincronizar e sair', () => acoes.sair(true), vista.ocupado),
+    botao('Sair sem sincronizar', () => acoes.sair(false), vista.ocupado, true),
+    botao('Cancelar', () => acoes.ir('lista'), false, true),
+  );
   return bloco;
 }
 

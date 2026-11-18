@@ -66,6 +66,25 @@ class Sincronizador {
         return atual.copy(itens = itens, cursor = cursor)
     }
 
+    /** Abre uma sessão só para revogar as deste aparelho. Não envia itens. */
+    fun encerrar(estado: EstadoBanco, sessao: SessaoCripto, codigoTotp: String?) {
+        if (estado.url.isBlank() || estado.cofreId.isBlank()) return
+        val cliente = ClienteSync(estado.url, pinsDe(estado.pins))
+        val aparelho = if (estado.aparelhoId.isBlank()) bytesParaHex(SecureRandom().generateSeed(16)) else estado.aparelhoId
+        val (desafioId, desafio) = cliente.desafio(estado.cofreId)
+        val resposta = cliente.responder(desafioId, sessao.assinarDesafio(desafio), aparelho)
+        val token = if (resposta.optString("estado") == "segundo_fator") {
+            if (codigoTotp.isNullOrBlank()) throw ErroRede("segundo_fator", "Informe o código TOTP.")
+            if (!resposta.optJSONArray("metodos")?.toString().orEmpty().contains("totp")) {
+                throw ErroRede("segundo_fator", "O segundo fator deste cofre não é TOTP.")
+            }
+            cliente.totp(resposta.getString("pre_token"), codigoTotp)
+        } else {
+            resposta.getString("token")
+        }
+        cliente.sair(token)
+    }
+
     private fun resolver(local: ItemGuardado, remoto: JSONObject?, sessao: SessaoCripto): List<ItemGuardado> {
         if (remoto == null) return listOf(local)
         val blobRemoto = Base64.getDecoder().decode(remoto.getString("blob"))
