@@ -77,6 +77,8 @@ jobs:
   android:
     name: Android
     runs-on: ubuntu-latest
+    env:
+      TEM_LOJA: ${{ secrets.BROQUEL_KEYSTORE_B64 != '' && 'sim' || 'nao' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v5
@@ -103,4 +105,26 @@ jobs:
         with:
           name: broquel-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      # Com o segredo BROQUEL_KEYSTORE_B64 cadastrado, o CI gera também o APK de release assinado
+      # sempre com a mesma chave. É esse que o celular consegue atualizar por cima.
+      - name: APK de release assinado
+        if: ${{ env.TEM_LOJA == 'sim' }}
+        working-directory: android
+        env:
+          BROQUEL_KEYSTORE_B64: ${{ secrets.BROQUEL_KEYSTORE_B64 }}
+          BROQUEL_KEYSTORE_SENHA: ${{ secrets.BROQUEL_KEYSTORE_SENHA }}
+          BROQUEL_KEY_ALIAS: ${{ secrets.BROQUEL_KEY_ALIAS }}
+          BROQUEL_KEY_SENHA: ${{ secrets.BROQUEL_KEY_SENHA }}
+        run: |
+          loja="$RUNNER_TEMP/broquel.keystore"
+          printf '%s' "$BROQUEL_KEYSTORE_B64" | base64 -d > "$loja"
+          BROQUEL_KEYSTORE="$loja" ./gradlew :app:assembleRelease
+          rm -f "$loja"
+      - name: Guardar APK de release
+        if: ${{ env.TEM_LOJA == 'sim' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: broquel-release
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
