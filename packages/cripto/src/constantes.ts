@@ -99,6 +99,9 @@ export const MAX_I64 = (1n << 63n) - 1n;
 export const PREFIXO_KIT = 'cofre1.';
 export const DOMINIO_KIT = 'cofre.kit.v1';
 
+/** Domínio do BLAKE2b que vira o identificador fixo do item com o nome do cofre. */
+export const DOMINIO_NOME = 'cofre.nome.v1';
+
 export const COMPRIMENTO_MIN = 12;
 export const COMPRIMENTO_MAX = 128;
 

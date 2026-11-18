@@ -39,6 +39,7 @@ test('o aplicativo e o site trocam o mesmo item, conflito e marca de exclusão',
     aparelhoId: '',
     registrado: false,
     itens: [],
+    apelido: '',
   };
   web.itens = await incluirItem(sessaoWeb, [], { ...conteudoVazio(), titulo: 'Banco', usuario: 'ana', senha: 'segredo-web' }, 1_700_000_000_000n, Uint8Array.from(randomBytes(16)));
   const ida = await sincronizar(web, sessaoWeb, servidor, null, relogio);
@@ -52,6 +53,7 @@ test('o aplicativo e o site trocam o mesmo item, conflito e marca de exclusão',
     aparelhoId: paraHex(randomBytes(16)),
     registrado: true,
     itens: [],
+    apelido: 'nao-enviar',
   };
   const vinda = await sincronizar(app, sessaoApp, servidor, null, relogio);
   app = vinda.estado;
@@ -132,11 +134,13 @@ test('o cliente só envia cabeçalho e blob', async () => {
     aparelhoId: 'ab'.repeat(16),
     registrado: false,
     itens: [],
+    apelido: 'apelido-local-nao-sobe',
   }, criado.sessao, cliente, null, relogioFixo());
   assert.ok(corpos.length > 0);
   for (const corpo of corpos) {
     assert.equal(corpo.includes('correta-cavalo'), false);
     assert.equal(corpo.includes('segredo'), false);
+    assert.equal(corpo.includes('apelido-local-nao-sobe'), false);
   }
   criado.sessao.travar();
 });

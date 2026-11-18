@@ -69,6 +69,8 @@ A cifra não interpreta o conteúdo. Para o Android e o site guardarem o mesmo t
 
 `conflito_de` é nulo ou o identificador, em hexadecimal, do item de origem. `v` sobe se o JSON mudar de forma. O servidor não vê este JSON.
 
+O nome amigável do cofre é outro item, com o mesmo preenchimento. O identificador dele é fixo, o BLAKE2b-128 descrito em [CRIPTOGRAFIA.md](CRIPTOGRAFIA.md). O JSON, também sem espaços, é `{"v":1,"tipo":"nome","nome":""}`. A tela não lista esse item como login. Um apelido local, para achar o cofre antes de digitar a senha, não entra na sincronização.
+
 ## Troca com o servidor
 
 O token de sessão é aleatório, de 32 bytes. O servidor guarda só o BLAKE2b dele, não o token em claro, e nunca a senha nem a chave do cofre. O desafio e a leitura do cabeçalho não pedem token. O resto pede.

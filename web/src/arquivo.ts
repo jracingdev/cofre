@@ -1,7 +1,7 @@
 import { deBase64, deHex, paraBase64 } from './codec.js';
 import type { EstadoSync, ItemLocal } from './sincronia.js';
 
-const CAMPOS = ['cofreId', 'cabecalhoB64', 'cursor', 'aparelhoId', 'bloqueioSegundos', 'registrado', 'itens'] as const;
+const CAMPOS = ['cofreId', 'cabecalhoB64', 'cursor', 'aparelhoId', 'bloqueioSegundos', 'registrado', 'apelido', 'itens'] as const;
 const CAMPOS_ITEM = ['itemId', 'revisao', 'criadoEm', 'atualizadoEm', 'apagado', 'blobB64', 'cursor', 'pendente', 'revisaoBase', 'maiorRevisao'] as const;
 const PROIBIDOS = ['senha', 'token', 'kit', 'chave', 'segredo', 'authsk', 'pre_token', 'plaintext'];
 
@@ -25,6 +25,8 @@ export type ArquivoLocal = {
   aparelhoId: string;
   bloqueioSegundos: number;
   registrado: boolean;
+  /** Apelido visível neste navegador antes da senha. Não vai para o servidor. */
+  apelido: string;
   itens: ItemArquivo[];
 };
 
@@ -59,6 +61,7 @@ export function estadoParaArquivo(estado: EstadoSync, bloqueioSegundos: number):
     aparelhoId: estado.aparelhoId,
     bloqueioSegundos,
     registrado: estado.registrado,
+    apelido: estado.apelido,
     itens: estado.itens.map((item) => ({
       itemId: item.itemId,
       revisao: item.revisao,
@@ -84,6 +87,7 @@ export function arquivoParaEstado(arquivo: ArquivoLocal): { estado: EstadoSync; 
       cursor: conferido.cursor,
       aparelhoId: conferido.aparelhoId,
       registrado: conferido.registrado,
+      apelido: typeof conferido.apelido === 'string' ? conferido.apelido : '',
       itens: conferido.itens.map((item) => itemDeArquivo(item)),
     },
   };

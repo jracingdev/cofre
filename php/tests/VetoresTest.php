@@ -88,6 +88,7 @@ final class VetoresTest extends TestCase
             $v['gerador']['senha'],
             Gerador::gerar(['nivel' => $v['gerador']['nivel'], 'comprimento' => $v['gerador']['comprimento']], $fonte),
         );
+        self::assertSame($v['nome']['item_id_hex'], bin2hex(Cofre::idNome($cofreId)));
     }
 
     /** @param array<string, mixed> $item */

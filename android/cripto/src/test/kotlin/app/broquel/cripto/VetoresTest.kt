@@ -89,6 +89,7 @@ class VetoresTest {
             fonteTeste(gerador.getString("semente_hex").toLong(16)),
         )
         assertEquals(gerador.getString("senha"), senha)
+        assertEquals(json.getJSONObject("nome").getString("item_id_hex"), bytesParaHex(idNome(sodium, cofreId)))
     }
 
     @Test

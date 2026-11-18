@@ -190,6 +190,26 @@ O nonce não entra nos dados associados. O modo AEAD já o autentica à parte.
 
 Senha errada, kit errado, byte alterado no texto cifrado e byte alterado nestes campos produzem a mesma falha: `autenticacao_falhou`. Não dá para distinguir senha errada de arquivo adulterado, e o servidor não vê essa tentativa: a abertura é local.
 
+## Nome do cofre
+
+O cabeçalho não tem campo de nome. Um nome em claro identificaria o cofre para quem lê o banco. O nome que aparece depois de abrir é um item comum, tipo `0x02`, cifrado com a chave do cofre, com o mesmo AAD e o mesmo preenchimento de 1 KiB. O tamanho que o servidor vê é o do bloco, não o do texto.
+
+O identificador desse item não é aleatório. É o BLAKE2b-128 (`crypto_generichash` de 16 bytes, sem chave) de:
+
+```
+cofre.nome.v1 || identificador do cofre (16 bytes)
+```
+
+`cofre.nome.v1` são 13 bytes ASCII, sem nulo no final. Os dois aparelhos calculam o mesmo identificador e sincronizam o item como qualquer outro. O servidor continua vendo só esse identificador e o blob. Cofre antigo, sem esse item, abre do mesmo jeito: a tela mostra o começo do identificador do cofre.
+
+O conteúdo em claro, antes do preenchimento, é JSON UTF-8, sem espaços:
+
+```json
+{"v":1,"tipo":"nome","nome":"Casa"}
+```
+
+O nome tem no máximo 40 pontos de código. Apagar o nome é um item com `apagado = 1` e conteúdo vazio, na revisão seguinte. O apelido usado só para reconhecer o cofre antes da senha fica no aparelho e não entra neste item nem no servidor.
+
 ## Desafio de autenticação
 
 A mensagem assinada tem 55 bytes. Não é um registro gravado. É o que o Ed25519 assina.

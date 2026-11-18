@@ -60,5 +60,10 @@
     "nivel": 1,
     "comprimento": 16,
     "senha": "9BX7VT8aqWMrkwka"
+  },
+  "nome": {
+    "dominio": "cofre.nome.v1",
+    "item_id_hex": "1bf3327658cf831070456f3afe14db06",
+    "json": "{\"v\":1,\"tipo\":\"nome\",\"nome\":\"Casa\"}"
   }
 }

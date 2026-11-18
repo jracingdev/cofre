@@ -27,4 +27,11 @@ class EstadoTest {
             texto,
         )
     }
+
+    @Test
+    fun jsonDoNomeIgualAoContrato() {
+        assertEquals("""{"v":1,"tipo":"nome","nome":"Casa"}""", nomeParaBytes("Casa").toString(Charsets.UTF_8))
+        assertEquals("Casa", nomeDe(nomeParaBytes("Casa")))
+        assertEquals("627f82ed…", abreviarIdentificador("627f82edf7feefbe8eb551caa971592e"))
+    }
 }

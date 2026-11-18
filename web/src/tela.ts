@@ -1,5 +1,5 @@
 import { controles, entropiaMinimaBits, type EstadoControles } from '@broquel/cripto';
-import type { ConteudoLogin } from './item.js';
+import { abreviarIdentificador, type ConteudoLogin } from './item.js';
 
 export type TelaNome =
   | 'carregando'
@@ -33,6 +33,8 @@ export type Vista = {
   uriTotp: string;
   codigos: string[];
   sessoes: Array<{ id: string; nome: string | null; revogada: boolean }>;
+  nome: string;
+  apelido: string;
 };
 
 export type Acoes = {
@@ -64,6 +66,8 @@ export type Acoes = {
   trocarSenha(): void;
   revogar(id: string): void;
   bloqueio(segundos: number): void;
+  gravarNome(): void;
+  gravarApelido(): void;
 };
 
 export type Rascunho = {
@@ -74,6 +78,8 @@ export type Rascunho = {
   editor: ConteudoLogin;
   codigo: string;
   senhaNova: string;
+  nome: string;
+  apelido: string;
 };
 
 export function desenhar(raiz: HTMLElement, vista: Vista, rascunho: Rascunho, acoes: Acoes): void {
@@ -86,7 +92,7 @@ export function desenhar(raiz: HTMLElement, vista: Vista, rascunho: Rascunho, ac
   icone.width = 52;
   icone.height = 52;
   const titulo = document.createElement('h1');
-  titulo.textContent = 'Broquel';
+  titulo.textContent = tituloVisivel(vista);
   marca.append(icone, titulo);
   moldura.append(marca);
   if (vista.ocupado) moldura.append(paragrafo('Derivando ou falando com o servidor…', 'mudo'));
@@ -266,6 +272,12 @@ function ajustes(vista: Vista, rascunho: Rascunho, acoes: Acoes): HTMLElement {
   const bloco = el('section', 'pilha');
   bloco.append(paragrafo(`Identificador: ${vista.identificador}`, 'mudo'));
   bloco.append(botao('Copiar identificador', () => acoes.copiar(vista.identificador), false, true));
+  bloco.append(campo('Nome do cofre', 'text', rascunho.nome, (valor) => { rascunho.nome = valor; }));
+  bloco.append(paragrafo('Esse nome é cifrado com a chave do cofre. O servidor não o vê. Sincronize para o celular mostrar o mesmo nome.', 'mudo'));
+  bloco.append(botao('Guardar nome', acoes.gravarNome, vista.ocupado));
+  bloco.append(campo('Apelido neste navegador', 'text', rascunho.apelido, (valor) => { rascunho.apelido = valor; }));
+  bloco.append(paragrafo('O apelido aparece nesta tela de abrir, antes da senha. Fica gravado neste navegador, sem a cifra do cofre, e não é enviado ao servidor.', 'mudo'));
+  bloco.append(botao('Guardar apelido', acoes.gravarApelido, false, true));
   bloco.append(paragrafo(`Bloqueio por inatividade: ${vista.bloqueioSegundos}s`, ''));
   bloco.append(controle(15, 300, 15, vista.bloqueioSegundos, acoes.bloqueio));
   bloco.append(paragrafo('O site fala só com este servidor. Não há script de fora e a chave fica só na memória, enquanto o cofre está aberto.', 'mudo'));
@@ -381,6 +393,15 @@ function paragrafo(texto: string, classe: string): HTMLParagraphElement {
   if (classe) elemento.className = classe;
   elemento.textContent = texto;
   return elemento;
+}
+
+function tituloVisivel(vista: Vista): string {
+  const aberto = vista.tela === 'lista' || vista.tela === 'editor' || vista.tela === 'gerador' || vista.tela === 'ajustes' || vista.tela === 'sair' || vista.tela === 'kit' || vista.tela === 'nova-senha';
+  if (aberto && vista.nome) return vista.nome;
+  if (aberto && vista.identificador) return abreviarIdentificador(vista.identificador);
+  if (vista.tela === 'abrir' && vista.apelido) return vista.apelido;
+  if (vista.tela === 'abrir' && vista.identificador) return abreviarIdentificador(vista.identificador);
+  return 'Broquel';
 }
 
 function el(tag: 'main' | 'div' | 'section' | 'p', classe: string): HTMLElement {

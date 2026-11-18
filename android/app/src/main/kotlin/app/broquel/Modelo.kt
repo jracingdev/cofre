@@ -17,6 +17,7 @@ import app.broquel.cripto.entropiaMinimaBits
 import app.broquel.cripto.estadoInicial
 import app.broquel.cripto.bytesParaHex
 import app.broquel.cripto.gerarSenha
+import app.broquel.cripto.idNome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -47,6 +48,10 @@ data class Ui(
     val bloqueioSegundos: Int = 60,
     val identificador: String = "",
     val identificadorRemoto: String = "",
+    val nomeCofre: String = "",
+    val apelido: String = "",
+    val nomeDigitado: String = "",
+    val apelidoDigitado: String = "",
 )
 
 data class LinhaItem(val id: ByteArray, val titulo: String, val usuario: String, val conflito: Boolean)
@@ -73,6 +78,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
                     biometria = estado.biometria,
                     bloqueioSegundos = estado.bloqueioSegundos,
                     identificador = identificadorDe(estado.cabecalho),
+                    apelido = estado.apelido,
                 )
             }
         }
@@ -112,7 +118,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         trabalhar {
             val sessao = app.motor.abrir(estado.cabecalho, senha)
             app.sessao = sessao
-            publicar { copy(tela = "lista", senha = "", erro = "", itens = linhas(sessao)) }
+            publicar { comoLista(sessao) }
             agendarBloqueio()
         }
     }
@@ -142,11 +148,11 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         val chave = claro.copyOfRange(0, 32)
         val sk = claro.copyOfRange(32, 96)
         app.sessao = SessaoCripto(cab.cofreId, chave, sk, cab.pk, app.motor.sodium)
-        publicar { copy(tela = "lista", erro = "", itens = linhas(app.sessao!!)) }
+        publicar { comoLista(app.sessao!!) }
         agendarBloqueio()
     }
 
-    fun kitGuardado() = publicar { copy(tela = "lista", itens = linhas(app.sessao!!)) }
+    fun kitGuardado() = publicar { comoLista(app.sessao!!) }
 
     fun novoItem() = publicar { copy(tela = "editor", editor = ConteudoLogin(), editandoId = null, erro = "") }
 
@@ -171,7 +177,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         val guardado = ItemGuardado(meta, blob, existente?.cursor ?: 0, true, existente?.meta?.revisao ?: 0)
         estado = estado.copy(itens = estado.itens.filterNot { it.meta.itemId.contentEquals(meta.itemId) } + guardado)
         gravar()
-        publicar { copy(tela = "lista", itens = linhas(sessao), erro = "") }
+        publicar { comoLista(sessao) }
     }
 
     fun apagarEditor() {
@@ -185,7 +191,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
                 ItemGuardado(meta, blob, existente.cursor, true, existente.meta.revisao),
         )
         gravar()
-        publicar { copy(tela = "lista", itens = linhas(sessao)) }
+        publicar { comoLista(sessao) }
     }
 
     fun copiar(texto: String) {
@@ -233,7 +239,54 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         publicar { copy(tela = "editor", editor = _ui.value.editor.copy(senha = _ui.value.senhaGerada), editandoId = null) }
     }
 
-    fun abrirAjustes() = publicar { copy(tela = "ajustes", url = estado.url, pins = estado.pins, bloqueioSegundos = estado.bloqueioSegundos) }
+    fun abrirAjustes() {
+        val sessaoAtual = app.sessao
+        publicar {
+            copy(
+                tela = "ajustes",
+                url = estado.url,
+                pins = estado.pins,
+                bloqueioSegundos = estado.bloqueioSegundos,
+                nomeDigitado = if (sessaoAtual != null) nomeAtual(sessaoAtual) else nomeCofre,
+                apelidoDigitado = estado.apelido,
+            )
+        }
+    }
+
+    fun definirNomeDigitado(valor: String) = publicar { copy(nomeDigitado = valor) }
+    fun definirApelidoDigitado(valor: String) = publicar { copy(apelidoDigitado = valor) }
+
+    fun salvarNome() {
+        val sessaoAtual = app.sessao ?: return
+        val nome = _ui.value.nomeDigitado.trim()
+        if (nome.length > 40) {
+            publicar { copy(erro = "O nome do cofre passa de 40 caracteres.") }
+            return
+        }
+        trabalhar {
+            val id = idNome(app.motor.sodium, sessaoAtual.cofreId)
+            val agora = System.currentTimeMillis()
+            val existente = estado.itens.find { it.meta.itemId.contentEquals(id) }
+            val meta = if (existente == null) {
+                MetadadosItem(sessaoAtual.cofreId, id, 1, agora, agora, nome.isEmpty())
+            } else {
+                existente.meta.copy(revisao = existente.meta.revisao + 1, atualizadoEm = agora, apagado = nome.isEmpty())
+            }
+            if (nome.isEmpty() && (existente == null || existente.meta.apagado)) return@trabalhar
+            val blob = sessaoAtual.cifrarItem(meta, if (nome.isEmpty()) ByteArray(0) else nomeParaBytes(nome))
+            val base = existente?.meta?.revisao ?: 0
+            estado = estado.copy(itens = estado.itens.filterNot { it.meta.itemId.contentEquals(id) } + ItemGuardado(meta, blob, existente?.cursor ?: 0, true, base))
+            gravar()
+            publicar { copy(nomeCofre = nome, aviso = "Nome guardado neste aparelho. Sincronize para o site mostrar o mesmo.") }
+        }
+    }
+
+    fun salvarApelido() {
+        val apelido = _ui.value.apelidoDigitado.trim().take(40)
+        estado = estado.copy(apelido = apelido)
+        gravar()
+        publicar { copy(apelido = apelido, aviso = "Apelido guardado só neste celular. Ele não vai para o servidor.") }
+    }
 
     fun definirUrl(valor: String) { estado = estado.copy(url = valor); gravar(); publicar { copy(url = valor) } }
 
@@ -271,7 +324,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         trabalhar {
             estado = Sincronizador().sincronizar(estado, sessao, _ui.value.codigoTotp.ifBlank { null })
             gravar()
-            publicar { copy(tela = "lista", aviso = "Sincronizado.", itens = linhas(sessao), erro = "") }
+            publicar { comoLista(sessao).copy(aviso = "Sincronizado.") }
         }
     }
 
@@ -327,9 +380,23 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         }
     }
 
+    private fun Ui.comoLista(sessao: SessaoCripto): Ui =
+        copy(tela = "lista", itens = linhas(sessao), nomeCofre = nomeAtual(sessao), senha = "", erro = "")
+
+    private fun nomeAtual(sessao: SessaoCripto): String {
+        val id = idNome(app.motor.sodium, sessao.cofreId)
+        val item = estado.itens.find { it.meta.itemId.contentEquals(id) && !it.meta.apagado } ?: return ""
+        val bytes = runCatching { sessao.decifrarItem(item.blob).conteudo }.getOrNull() ?: return ""
+        return nomeDe(bytes)
+    }
+
     private fun linhas(sessao: SessaoCripto): List<LinhaItem> =
-        estado.itens.filter { !it.meta.apagado }.map { item ->
-            val conteudo = runCatching { conteudoDe(sessao.decifrarItem(item.blob).conteudo) }.getOrElse { ConteudoLogin(titulo = "Item ilegível") }
+        estado.itens.filter { !it.meta.apagado }.mapNotNull { item ->
+            val bytes = runCatching { sessao.decifrarItem(item.blob).conteudo }.getOrElse {
+                return@mapNotNull LinhaItem(item.meta.itemId, "Item ilegível", "", false)
+            }
+            if (ehItemNome(bytes)) return@mapNotNull null
+            val conteudo = conteudoDe(bytes)
             LinhaItem(item.meta.itemId, conteudo.titulo.ifBlank { "Sem título" }, conteudo.usuario, conteudo.conflitoDe != null)
         }
 

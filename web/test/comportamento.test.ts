@@ -3,7 +3,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { conferirArquivo, estadoParaArquivo } from '../src/arquivo.ts';
 import { decidirConflito } from '../src/conflito.ts';
-import { lerLogin, serializarLogin } from '../src/item.ts';
+import { lerLogin, lerNome, serializarLogin, serializarNome } from '../src/item.ts';
 import { copiarELimpar, criarVigia } from '../src/memoria.ts';
 import { estadoVazio } from '../src/sincronia.ts';
 import { credencialParaEnvio, opcoesDeCriacao, opcoesDeLogin } from '../src/webauthn.ts';
@@ -23,6 +23,8 @@ test('o login usa o mesmo JSON do aplicativo', () => {
   assert.equal(new TextDecoder().decode(bytes), JSON_DO_APP);
   assert.equal(lerLogin(bytes).senha, 'segredo');
   assert.equal(lerLogin(new Uint8Array()).titulo, '');
+  assert.equal(new TextDecoder().decode(serializarNome('Casa')), '{"v":1,"tipo":"nome","nome":"Casa"}');
+  assert.equal(lerNome(serializarNome('Casa')), 'Casa');
 });
 
 test('conflito segue a especificação', () => {

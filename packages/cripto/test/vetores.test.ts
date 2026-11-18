@@ -18,6 +18,7 @@ import {
   montarBackup,
   montarCabecalho,
   montarMensagemDesafio,
+  idDoNome,
   TAMANHO_CABECALHO,
   type MetadadosItem,
 } from '../src/index.ts';
@@ -57,6 +58,7 @@ type Vetores = {
   };
   backup_hex: string;
   gerador: { semente_hex: string; nivel: number; comprimento: number; senha: string };
+  nome: { item_id_hex: string };
 };
 
 type ItemVetor = {
@@ -170,6 +172,7 @@ test('os vetores publicados batem com a biblioteca e com o mapa de bytes', async
     fonteTeste(Number.parseInt(vetores.gerador.semente_hex, 16)),
   );
   assert.equal(gerada, vetores.gerador.senha);
+  assert.equal(paraHex(await idDoNome(cofreId)), vetores.nome.item_id_hex);
 });
 
 function meta(item: ItemVetor, cofreId: Uint8Array): MetadadosItem {

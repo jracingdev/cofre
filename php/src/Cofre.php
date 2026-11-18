@@ -26,6 +26,7 @@ final class Cofre
     public const TAMANHO_WRAP = 136;
     public const TAMANHO_CABECALHO = 357;
     public const PREFIXO_ITEM = 84;
+    public const DOMINIO_NOME = 'cofre.nome.v1';
     public const BLOCO = 1024;
     public const OPSLIMIT_PADRAO = 4;
     public const MEMLIMIT_PADRAO = 268435456;
@@ -144,6 +145,16 @@ final class Cofre
     public static function aadKit(string $cofreId, string $pk): string
     {
         return self::MAGIC . chr(self::VERSAO) . chr(self::TIPO_CABECALHO) . chr(self::PROPOSITO_KIT) . $cofreId . $pk;
+    }
+
+    /** BLAKE2b-128 de cofre.nome.v1 || identificador do cofre. 16 bytes. */
+    public static function idNome(string $cofreId): string
+    {
+        if (strlen($cofreId) !== 16) {
+            throw new ErroCofre('formato_invalido', 'Identificador do cofre inválido.');
+        }
+
+        return sodium_crypto_generichash(self::DOMINIO_NOME . $cofreId, '', 16);
     }
 
     /** @param array{cofreId: string, itemId: string, revisao: int, criadoEm: int, atualizadoEm: int, apagado: bool} $meta */

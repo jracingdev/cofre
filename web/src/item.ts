@@ -41,6 +41,33 @@ export function lerLogin(bytes: Uint8Array): ConteudoLogin {
   };
 }
 
+export function serializarNome(nome: string): Uint8Array {
+  return new TextEncoder().encode(`{"v":1,"tipo":"nome","nome":${JSON.stringify(nome)}}`);
+}
+
+export function lerNome(bytes: Uint8Array): string | null {
+  if (bytes.length === 0) return null;
+  const json = JSON.parse(new TextDecoder().decode(bytes)) as { v?: number; tipo?: string; nome?: string };
+  if (json.v !== 1 || json.tipo !== 'nome' || typeof json.nome !== 'string') return null;
+  return json.nome;
+}
+
+export function normalizarNome(nome: string): string {
+  const limpo = nome.trim();
+  if ([...limpo].length > 40) {
+    throw new Error('O nome do cofre passa de 40 caracteres.');
+  }
+  if (/[\u0000-\u001f]/u.test(limpo)) {
+    throw new Error('O nome do cofre tem um caractere inválido.');
+  }
+  return limpo;
+}
+
+export function abreviarIdentificador(cofreId: string): string {
+  if (cofreId.length < 8) return cofreId;
+  return `${cofreId.slice(0, 8)}…`;
+}
+
 export function apagarConteudo(conteudo: ConteudoLogin): void {
   conteudo.titulo = '';
   conteudo.usuario = '';

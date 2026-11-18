@@ -20,6 +20,7 @@ import app.broquel.BroquelAplicacao
 import app.broquel.GuardaChaves
 import app.broquel.MainActivity
 import app.broquel.conteudoDe
+import app.broquel.ehItemNome
 
 class ServicoPreenchimento : AutofillService() {
     override fun onFillRequest(request: FillRequest, cancellationSignal: CancellationSignal, callback: FillCallback) {
@@ -53,7 +54,9 @@ class ServicoPreenchimento : AutofillService() {
         val estado = runCatching { banco.ler() }.getOrNull()
         val resposta = FillResponse.Builder()
         estado?.itens?.filter { !it.meta.apagado }?.take(8)?.forEach { item ->
-            val conteudo = runCatching { conteudoDe(sessao.decifrarItem(item.blob).conteudo) }.getOrNull() ?: return@forEach
+            val bytes = runCatching { sessao.decifrarItem(item.blob).conteudo }.getOrNull() ?: return@forEach
+            if (ehItemNome(bytes)) return@forEach
+            val conteudo = conteudoDe(bytes)
             val visao = RemoteViews(packageName, android.R.layout.simple_list_item_1)
             visao.setTextViewText(android.R.id.text1, conteudo.titulo.ifBlank { conteudo.usuario })
             val conjunto = Dataset.Builder()

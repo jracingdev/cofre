@@ -51,7 +51,7 @@ fun App(modelo: Modelo) {
     val ui by modelo.ui.collectAsState()
     Scaffold { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Broquel", style = MaterialTheme.typography.headlineMedium)
+            Text(tituloDaTela(ui), style = MaterialTheme.typography.headlineMedium)
             if (ui.ocupado) CircularProgressIndicator()
             if (ui.erro.isNotBlank()) Text(ui.erro, color = Color(0xFFFFB4AB))
             if (ui.aviso.isNotBlank()) Text(ui.aviso)
@@ -188,6 +188,12 @@ private fun Ajustes(ui: Ui, modelo: Modelo) {
         Text("Identificador: ${ui.identificador}")
         TextButton(onClick = { modelo.copiar(ui.identificador) }) { Text("Copiar identificador") }
     }
+    OutlinedTextField(ui.nomeDigitado, modelo::definirNomeDigitado, label = { Text("Nome do cofre") }, modifier = Modifier.fillMaxWidth())
+    Text("Esse nome é cifrado. O servidor não o vê. Sincronize para o site mostrar o mesmo.")
+    Button(onClick = modelo::salvarNome, enabled = !ui.ocupado) { Text("Guardar nome") }
+    OutlinedTextField(ui.apelidoDigitado, modelo::definirApelidoDigitado, label = { Text("Apelido neste celular") }, modifier = Modifier.fillMaxWidth())
+    Text("O apelido aparece antes da senha, só neste celular. Não vai para o servidor. Quem usar o aparelho desbloqueado pode vê-lo no arquivo local cifrado pelo sistema.")
+    Button(onClick = modelo::salvarApelido) { Text("Guardar apelido") }
     OutlinedTextField(ui.url, modelo::definirUrl, label = { Text("Servidor") }, modifier = Modifier.fillMaxWidth())
     OutlinedTextField(ui.pins, modelo::definirPins, label = { Text("Pins sha256/ do certificado, um por linha") }, modifier = Modifier.fillMaxWidth())
     Text("Bloqueio automático: ${ui.bloqueioSegundos}s")
@@ -218,6 +224,15 @@ private fun Saida(modelo: Modelo) {
     Button(onClick = { modelo.sairDoAparelho(true) }) { Text("Sincronizar e sair") }
     TextButton(onClick = { modelo.sairDoAparelho(false) }) { Text("Sair sem sincronizar") }
     TextButton(onClick = { modelo.ir("ajustes") }) { Text("Cancelar") }
+}
+
+private fun tituloDaTela(ui: Ui): String {
+    val aberto = ui.tela == "lista" || ui.tela == "editor" || ui.tela == "gerador" || ui.tela == "ajustes" || ui.tela == "sair" || ui.tela == "kit"
+    if (aberto && ui.nomeCofre.isNotBlank()) return ui.nomeCofre
+    if (aberto && ui.identificador.isNotBlank()) return abreviarIdentificador(ui.identificador)
+    if (ui.tela == "desbloquear" && ui.apelido.isNotBlank()) return ui.apelido
+    if (ui.tela == "desbloquear" && ui.identificador.isNotBlank()) return abreviarIdentificador(ui.identificador)
+    return "Broquel"
 }
 
 @Composable

@@ -44,6 +44,8 @@ export type EstadoSync = {
   aparelhoId: string;
   registrado: boolean;
   itens: ItemLocal[];
+  /** Apelido só deste navegador. Não entra na sincronização. */
+  apelido: string;
 };
 
 export type Cabeca = {
@@ -107,7 +109,7 @@ export function relogioReal(): Relogio {
 }
 
 export function estadoVazio(): EstadoSync {
-  return { cofreId: '', cabecalho: new Uint8Array(), cursor: 0, aparelhoId: '', registrado: false, itens: [] };
+  return { cofreId: '', cabecalho: new Uint8Array(), cursor: 0, aparelhoId: '', registrado: false, itens: [], apelido: '' };
 }
 
 export async function sincronizar(
@@ -178,7 +180,7 @@ export async function sincronizar(
   return {
     token,
     retrocesso: aviso.retrocesso,
-    estado: { cofreId, cabecalho: estado.cabecalho, cursor, aparelhoId, registrado, itens },
+    estado: { cofreId, cabecalho: estado.cabecalho, cursor, aparelhoId, registrado, itens, apelido: estado.apelido },
   };
 }
 

@@ -371,6 +371,15 @@ private fun abrirQuadro(quadro: ByteArray): ByteArray {
     return quadro.copyOfRange(4, 4 + n)
 }
 
+internal fun idNome(sodium: LazySodium, cofreId: ByteArray): ByteArray {
+    val mensagem = concatenar("cofre.nome.v1".toByteArray(Charsets.US_ASCII), cofreId)
+    val hash = ByteArray(16)
+    if (!sodium.cryptoGenericHash(hash, 16, mensagem, mensagem.size.toLong())) {
+        throw ErroCripto("formato_invalido", "Falha ao derivar o identificador do nome.")
+    }
+    return hash
+}
+
 internal fun segredosIguais(sodium: LazySodium, a: ByteArray, b: ByteArray): Boolean {
     if (a.size != b.size) return false
     return sodium.getSodium().sodium_memcmp(a, b, a.size) == 0

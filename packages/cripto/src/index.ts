@@ -32,6 +32,7 @@ export {
   type MetadadosItem,
 } from './formato.js';
 export { codificarKit, decodificarKit } from './kit.js';
+export { idDoNome } from './nome.js';
 export {
   abrirBackup,
   abrirCofre,

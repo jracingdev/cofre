@@ -12,8 +12,9 @@ import {
 import { criarCliente } from './cliente.js';
 import { deBase64, paraHex } from './codec.js';
 import { apagarDeposito, gravarDeposito, lerDeposito } from './deposito.js';
-import { alterarItem, excluirItem, incluirItem, lerConteudo } from './itens.js';
-import { apagarConteudo, conteudoVazio } from './item.js';
+import { alterarItem, excluirItem, gravarNome, incluirItem, lerConteudo, nomeDoCofre } from './itens.js';
+import { apagarConteudo, conteudoVazio, normalizarNome } from './item.js';
+import { idDoNome } from '@broquel/cripto';
 import { copiarELimpar, criarVigia, type AreaTransferencia } from './memoria.js';
 import { ErroSync, encerrarSessao, estadoVazio, relogioReal, sincronizar, type Fator, type Transporte } from './sincronia.js';
 import { credencialParaEnvio, opcoesDeCriacao, opcoesDeLogin, type OpcoesServidor } from './webauthn.js';
@@ -51,6 +52,8 @@ const vista: Vista = {
   uriTotp: '',
   codigos: [],
   sessoes: [],
+  nome: '',
+  apelido: '',
 };
 
 const rascunho: Rascunho = {
@@ -61,6 +64,8 @@ const rascunho: Rascunho = {
   editor: conteudoVazio(),
   codigo: '',
   senhaNova: '',
+  nome: '',
+  apelido: '',
 };
 
 const vigia = criarVigia(() => bloqueioSegundos * 1000, () => Date.now(), () => { travar(); });
@@ -133,6 +138,8 @@ const acoes: Acoes = {
   girarKit: () => { void girarKit(); },
   trocarSenha: () => { void trocarSenha(); },
   revogar: (id) => { void revogar(id); },
+  gravarNome: () => { void guardarNome(); },
+  gravarApelido: () => { void guardarApelido(); },
   bloqueio: (segundos) => {
     bloqueioSegundos = Math.min(300, Math.max(15, segundos));
     vista.bloqueioSegundos = bloqueioSegundos;
@@ -151,6 +158,7 @@ async function iniciar(): Promise<void> {
       bloqueioSegundos = local.bloqueioSegundos;
       vista.bloqueioSegundos = bloqueioSegundos;
       vista.identificador = paraHex(lerCabecalho(estado.cabecalho).cofreId);
+      vista.apelido = estado.apelido;
       ir('abrir');
       return;
     }
@@ -371,11 +379,31 @@ async function revogar(id: string): Promise<void> {
   });
 }
 
+async function guardarNome(): Promise<void> {
+  if (!sessao) return;
+  await ocupado(async () => {
+    estado.itens = await gravarNome(sessao!, estado.itens, rascunho.nome, relogio.agora());
+    await persistir();
+    vista.nome = await nomeDoCofre(sessao!, estado.itens);
+    vista.aviso = 'Nome guardado neste navegador. Sincronize para o celular mostrar o mesmo.';
+    ir('ajustes');
+  });
+}
+
+async function guardarApelido(): Promise<void> {
+  estado = { ...estado, apelido: normalizarNome(rascunho.apelido) };
+  vista.apelido = estado.apelido;
+  await persistir();
+  vista.aviso = 'Apelido guardado só neste navegador.';
+  ir('ajustes');
+}
+
 async function mostrarLista(): Promise<void> {
   if (!sessao) return;
+  const idNome = paraHex(await idDoNome(sessao.cofreId));
   const proximas: Linha[] = [];
   for (const item of estado.itens) {
-    if (item.apagado) continue;
+    if (item.apagado || item.itemId === idNome) continue;
     try {
       const conteudo = await lerConteudo(sessao, item);
       proximas.push({
@@ -391,6 +419,7 @@ async function mostrarLista(): Promise<void> {
   }
   linhas = proximas;
   vista.linhas = linhas;
+  vista.nome = await nomeDoCofre(sessao, estado.itens);
   vigia.armar();
   if (token) {
     try {
@@ -426,6 +455,8 @@ function esquecerCofreLocal(): void {
   bloqueioSegundos = 60;
   vista.bloqueioSegundos = 60;
   vista.identificador = '';
+  vista.nome = '';
+  vista.apelido = '';
   vista.kit = '';
   vista.senhaGerada = '';
   vista.segredoTotp = '';
@@ -457,6 +488,7 @@ function travar(): void {
   vista.codigos = [];
   vista.linhas = [];
   vista.sessoes = [];
+  vista.nome = '';
   linhas = [];
   editandoId = null;
   apagarConteudo(rascunho.editor);
@@ -494,6 +526,10 @@ async function copiar(texto: string): Promise<void> {
 function ir(tela: TelaNome): void {
   vista.tela = tela;
   vista.erro = '';
+  if (tela === 'ajustes') {
+    rascunho.nome = vista.nome;
+    rascunho.apelido = vista.apelido;
+  }
   if (tela !== 'kit') vista.aviso = tela === 'lista' ? vista.aviso : '';
   desenhar(raiz, vista, rascunho, acoes);
 }

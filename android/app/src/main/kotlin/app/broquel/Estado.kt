@@ -22,6 +22,7 @@ data class EstadoBanco(
     val aparelhoId: String = "",
     val biometria: Boolean = false,
     val bloqueioSegundos: Int = 60,
+    val apelido: String = "",
     val itens: List<ItemGuardado> = emptyList(),
 )
 
@@ -51,6 +52,7 @@ fun EstadoBanco.paraJson(): String {
         .put("aparelhoId", aparelhoId)
         .put("biometria", biometria)
         .put("bloqueioSegundos", bloqueioSegundos)
+        .put("apelido", apelido)
         .put("itens", itensJson)
         .toString()
 }
@@ -89,6 +91,7 @@ fun estadoDeJson(texto: String): EstadoBanco {
         aparelhoId = json.optString("aparelhoId"),
         biometria = json.optBoolean("biometria"),
         bloqueioSegundos = json.optInt("bloqueioSegundos", 60),
+        apelido = json.optString("apelido"),
         itens = lista,
     )
 }
@@ -101,6 +104,21 @@ data class ConteudoLogin(
     val notas: String = "",
     val conflitoDe: String? = null,
 )
+
+fun nomeParaBytes(nome: String): ByteArray =
+    "{\"v\":1,\"tipo\":\"nome\",\"nome\":${JSONObject.quote(nome)}}".toByteArray(Charsets.UTF_8)
+
+fun ehItemNome(bytes: ByteArray): Boolean {
+    if (bytes.isEmpty()) return false
+    return runCatching { JSONObject(bytes.toString(Charsets.UTF_8)).optString("tipo") == "nome" }.getOrDefault(false)
+}
+
+fun nomeDe(bytes: ByteArray): String {
+    if (!ehItemNome(bytes)) return ""
+    return JSONObject(bytes.toString(Charsets.UTF_8)).optString("nome")
+}
+
+fun abreviarIdentificador(id: String): String = if (id.length < 8) id else id.take(8) + "…"
 
 fun ConteudoLogin.paraBytes(): ByteArray {
     val conflito = if (conflitoDe == null) "null" else JSONObject.quote(conflitoDe)
