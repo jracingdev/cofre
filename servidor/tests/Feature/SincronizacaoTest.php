@@ -195,9 +195,19 @@ final class SincronizacaoTest extends TestCase
         $pre = $this->preToken($id, $cripto);
         $this->assertSame('segundo_fator', $pre['estado']);
         $this->assertContains('totp', $pre['metodos']);
+        // O código usado para confirmar não vale de novo.
         $this->withToken($pre['pre_token'])->postJson('/v1/auth/totp', ['codigo' => $codigo])
+            ->assertStatus(401);
+
+        $this->travel(31)->seconds();
+        $novo = \OTPHP\TOTP::create($inicio['segredo'])->at(now()->getTimestamp());
+        $pre = $this->preToken($id, $cripto);
+        $this->withToken($pre['pre_token'])->postJson('/v1/auth/totp', ['codigo' => $novo])
             ->assertOk()
             ->assertJsonPath('estado', 'sessao');
+        $outra = $this->preToken($id, $cripto);
+        $this->withToken($outra['pre_token'])->postJson('/v1/auth/totp', ['codigo' => $novo])
+            ->assertStatus(401);
 
         $preCodigo = $this->preToken($id, $cripto);
         $this->withToken($preCodigo['pre_token'])->postJson('/v1/auth/recuperacao', ['codigo' => $recuperacao[0]])
