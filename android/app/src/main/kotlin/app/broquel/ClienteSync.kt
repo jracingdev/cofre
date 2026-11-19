@@ -2,6 +2,7 @@ package app.broquel
 
 import app.broquel.cripto.SessaoCripto
 import okhttp3.CertificatePinner
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -104,3 +105,20 @@ class ClienteSync(urlBase: String, pins: List<String>) {
 }
 
 fun pinsDe(texto: String): List<String> = texto.lines().map { it.trim() }.filter { it.isNotEmpty() }
+
+const val SERVIDOR_PADRAO = "https://broquel.jracing.dev.br"
+
+/**
+ * Endereço https já completo, ou null enquanto a pessoa ainda digita.
+ * Não lança: um texto como "h" não é URL e não pode derrubar o campo.
+ */
+fun servidorHttps(valor: String): String? {
+    val texto = valor.trim().trimEnd('/')
+    val url = try {
+        texto.toHttpUrl()
+    } catch (_: IllegalArgumentException) {
+        return null
+    }
+    if (url.scheme != "https" || url.host.isEmpty()) return null
+    return texto
+}

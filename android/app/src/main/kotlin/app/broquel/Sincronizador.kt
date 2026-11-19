@@ -18,8 +18,8 @@ class Sincronizador(private val idDoNome: ByteArray = ByteArray(0)) {
         private set
 
     fun sincronizar(estado: EstadoBanco, sessao: SessaoCripto, codigoTotp: String?): EstadoBanco {
-        if (estado.url.isBlank()) throw ErroRede("rede", "Informe o endereço do servidor.")
-        val cliente = ClienteSync(estado.url, pinsDe(estado.pins))
+        val base = servidorHttps(estado.url) ?: throw ErroRede("rede", "O servidor precisa ser um endereço https válido.")
+        val cliente = ClienteSync(base, pinsDe(estado.pins))
         var atual = estado
         if (atual.aparelhoId.isBlank()) atual = atual.copy(aparelhoId = bytesParaHex(ByteArray(16).also { SecureRandom().nextBytes(it) }))
         if (atual.cofreId.isBlank()) atual = atual.copy(cofreId = cliente.registrar(atual.cabecalho))
@@ -80,7 +80,9 @@ class Sincronizador(private val idDoNome: ByteArray = ByteArray(0)) {
      */
     fun encerrar(estado: EstadoBanco, sessao: SessaoCripto, codigoTotp: String?, tokenAtual: String? = ultimoToken) {
         if (estado.url.isBlank() || estado.cofreId.isBlank()) return
-        val cliente = ClienteSync(estado.url, pinsDe(estado.pins))
+        val base = servidorHttps(estado.url)
+            ?: throw ErroRede("rede", "O servidor precisa ser um endereço https válido.")
+        val cliente = ClienteSync(base, pinsDe(estado.pins))
         if (!tokenAtual.isNullOrBlank()) {
             try {
                 cliente.sair(tokenAtual)

@@ -34,4 +34,16 @@ class EstadoTest {
         assertEquals("Casa", nomeDe(nomeParaBytes("Casa")))
         assertEquals("627f82ed…", abreviarIdentificador("627f82edf7feefbe8eb551caa971592e"))
     }
+
+    @Test
+    fun servidorPadraoEHttpsEstrito() {
+        assertEquals(SERVIDOR_PADRAO, EstadoBanco().url)
+        assertEquals(SERVIDOR_PADRAO, estadoDeJson("{}").url)
+        assertEquals("https://outro.exemplo", estadoDeJson("""{"url":"https://outro.exemplo"}""").url)
+        assertEquals(SERVIDOR_PADRAO, servidorHttps(SERVIDOR_PADRAO))
+        assertEquals(SERVIDOR_PADRAO, servidorHttps("$SERVIDOR_PADRAO/"))
+        assertEquals(null, servidorHttps("h"))
+        assertEquals(null, servidorHttps("https://"))
+        assertEquals(null, servidorHttps("http://broquel.jracing.dev.br"))
+    }
 }

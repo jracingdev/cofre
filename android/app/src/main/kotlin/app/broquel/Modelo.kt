@@ -42,7 +42,7 @@ data class Ui(
     val comprimento: Int = estadoInicial().comprimento,
     val senhaGerada: String = "",
     val bits: Int = entropiaMinimaBits(estadoInicial()),
-    val url: String = "",
+    val url: String = SERVIDOR_PADRAO,
     val pins: String = "",
     val codigoTotp: String = "",
     val biometria: Boolean = false,
@@ -318,7 +318,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
     }
 
     fun definirUrl(valor: String) {
-        val limpo = valor.trim().take(200)
+        val limpo = valor.take(200)
         estado = estado.copy(url = limpo)
         publicar { copy(url = limpo, erro = "") }
         gravarDepois()
@@ -335,8 +335,8 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
             if (!id.matches(Regex("^[0-9a-f]{32}$"))) {
                 throw ErroRede("formato_invalido", "O identificador tem 32 caracteres hexadecimais.")
             }
-            if (estado.url.isBlank()) throw ErroRede("rede", "Informe o endereço do servidor.")
-            val cab = ClienteSync(estado.url, pinsDe(estado.pins)).cabecalho(id)
+            val base = servidorHttps(estado.url) ?: throw ErroRede("rede", "O servidor precisa ser um endereço https válido.")
+            val cab = ClienteSync(base, pinsDe(estado.pins)).cabecalho(id)
             if (bytesParaHex(lerCabecalho(cab).cofreId) != id) {
                 throw ErroRede("formato_invalido", "O cabeçalho não bate com o identificador.")
             }
@@ -421,6 +421,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         publicar {
             copy(
                 tela = "inicio",
+                url = estado.url,
                 itens = emptyList(),
                 identificador = "",
                 senha = "",
