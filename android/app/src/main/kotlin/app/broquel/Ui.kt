@@ -121,7 +121,7 @@ fun Tema(conteudo: @Composable () -> Unit) {
 private fun telaAnterior(tela: String): String? = when (tela) {
     "editor", "gerador", "ajustes" -> "lista"
     "sobre", "sair" -> "ajustes"
-    "criar" -> "inicio"
+    "criar", "trazer" -> "inicio"
     else -> null
 }
 
@@ -133,6 +133,7 @@ private fun tituloDa(ui: Ui): String = when (ui.tela) {
     "sobre" -> "Sobre"
     "sair" -> "Sair deste aparelho"
     "criar" -> "Criar cofre"
+    "trazer" -> "Já tenho um cofre"
     "kit" -> "Kit de recuperação"
     else -> ""
 }
@@ -199,6 +200,7 @@ fun App(modelo: Modelo) {
                         }
                         "inicio" -> Inicio(ui, modelo)
                         "criar" -> Criar(ui, modelo)
+                        "trazer" -> Trazer(ui, modelo)
                         "kit" -> Kit(ui, modelo)
                         "desbloquear" -> Desbloquear(ui, modelo)
                         "editor" -> Editor(ui, modelo)
@@ -372,16 +374,31 @@ private fun Cabecalho(subtitulo: String) {
 private fun Inicio(ui: Ui, modelo: Modelo) {
     Cabecalho("Seu cofre de senhas. A senha mestra não sai deste aparelho.")
     BotaoCheio("Criar cofre novo", { modelo.ir("criar") }, icone = Icons.Filled.Add)
-    Secao("Já tenho um cofre") {
-        Dentro {
-            Campo(ui.url, modelo::definirUrl, "Servidor (https)", teclado = KeyboardType.Uri)
-            Campo(ui.identificadorRemoto, modelo::definirIdentificadorRemoto, "Identificador do cofre")
-            BotaoContorno("Trazer do servidor", modelo::trazerCofre, habilitado = !ui.ocupado, icone = Icons.Filled.Sync)
-        }
-    }
+    BotaoContorno("Já tenho um cofre", { modelo.ir("trazer") }, icone = Icons.Filled.Sync)
     if (ui.identificador.isNotBlank()) {
         TextButton(onClick = { modelo.ir("desbloquear") }, modifier = Modifier.fillMaxWidth()) { Text("Voltar ao cofre deste aparelho") }
     }
+}
+
+@Composable
+private fun Trazer(ui: Ui, modelo: Modelo) {
+    Explicacao(
+        "Use o identificador de 32 caracteres do cofre. Ele aparece em Configurações no outro celular, " +
+            "ou no site, depois de abrir o cofre. Depois você abre com a mesma senha mestra.",
+    )
+    Campo(ui.identificadorRemoto, modelo::definirIdentificadorRemoto, "Identificador do cofre")
+    Text(
+        "${ui.identificadorRemoto.length} de 32 caracteres",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    Campo(ui.url, modelo::definirUrl, "Servidor (https)", teclado = KeyboardType.Uri)
+    BotaoCheio(
+        "Trazer do servidor",
+        modelo::trazerCofre,
+        habilitado = !ui.ocupado && ui.identificadorRemoto.length == 32,
+        icone = Icons.Filled.Sync,
+    )
 }
 
 @Composable
