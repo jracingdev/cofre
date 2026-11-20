@@ -663,7 +663,10 @@ private fun Ajustes(ui: Ui, modelo: Modelo) {
             })
             HorizontalDivider(Modifier.padding(horizontal = 16.dp))
         }
-        Linha("Preenchimento automático", "Ative em Ajustes do Android, Senhas e preenchimento automático, Broquel.")
+        Linha(
+            "Preenchimento automático",
+            "Ative em Ajustes do Android, Senhas e preenchimento automático, Broquel. No Chrome, ligue também \"Preenchimento automático usando outro serviço\" nas configurações dele. O Broquel só oferece a senha do mesmo site ou app e pergunta se quer guardar as novas.",
+        )
     }
     Secao("Aplicativo") {
         Linha("Sobre", "Versão ${ui.versao}", Icons.Filled.Info, aoTocar = { modelo.ir("sobre") })

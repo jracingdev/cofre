@@ -21,6 +21,8 @@ import app.broquel.cripto.estadoInicial
 import app.broquel.cripto.bytesParaHex
 import app.broquel.cripto.gerarSenha
 import app.broquel.cripto.idNome
+import app.broquel.autofill.Origem
+import app.broquel.autofill.Preenchimento
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -139,6 +141,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
             estado = Desbloqueio.aoAbrirComSenha(estado, System.currentTimeMillis(), bootAtual())
             gravar()
             publicar { comoLista(sessao).copy(aviso = "", abertoComSenha = true) }
+            abrirGuardar()
             atualizarDesbloqueio()
             agendarBloqueio()
         }
@@ -221,6 +224,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         estado = Desbloqueio.aoAbrirComBiometria(estado)
         gravarNaTela()
         publicar { comoLista(sessao).copy(aviso = "", abertoComSenha = false) }
+        abrirGuardar()
         atualizarDesbloqueio()
         agendarBloqueio()
     }
@@ -582,9 +586,62 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         atualizarDesbloqueio()
     }
 
-    /** Ao voltar para o app o prazo, o reinício ou as falhas podem ter mudado. */
+    /**
+     * Ao voltar para o app o prazo, o reinício ou as falhas podem ter mudado, e outra tela do
+     * Broquel (aberta pelo preenchimento automático) pode ter gravado a cópia local.
+     */
     fun emPrimeiroPlano() {
+        if (gravacaoAdiada?.isActive != true && !_ui.value.ocupado && estado.cabecalho.isNotEmpty()) {
+            runCatching { banco.ler() }.getOrNull()?.takeIf { it.cabecalho.contentEquals(estado.cabecalho) }?.let { lido ->
+                estado = lido
+                val sessao = app.sessao
+                if (sessao != null && _ui.value.tela == "lista") publicar { copy(itens = linhas(sessao)) }
+            }
+        }
         if (app.sessao != null) agendarBloqueio() else atualizarDesbloqueio()
+    }
+
+    private var aGuardar: ConteudoLogin? = null
+
+    /** Senha que o Android ofereceu guardar. Abre o editor para conferir; pede o cofre aberto antes. */
+    fun receberParaGuardar(conteudo: ConteudoLogin) {
+        aGuardar = conteudo
+        if (app.sessao != null) {
+            abrirGuardar()
+        } else {
+            publicar { copy(aviso = "Abra o cofre para guardar a senha de ${conteudo.titulo}.", erro = "") }
+        }
+    }
+
+    private fun abrirGuardar() {
+        val novo = aGuardar ?: return
+        aGuardar = null
+        val sessao = app.sessao ?: return
+        val origem = if (novo.url.startsWith("androidapp://")) {
+            Origem(null, novo.url.removePrefix("androidapp://"))
+        } else {
+            Origem(Preenchimento.hostDe(novo.url), "")
+        }
+        val existente = estado.itens.filter { !it.meta.apagado }.firstNotNullOfOrNull { item ->
+            val bytes = runCatching { sessao.decifrarItem(item.blob).conteudo }.getOrNull() ?: return@firstNotNullOfOrNull null
+            if (ehItemNome(bytes)) return@firstNotNullOfOrNull null
+            val conteudo = conteudoDe(bytes)
+            if (conteudo.usuario == novo.usuario && Preenchimento.combina(conteudo.url, origem)) item.meta.itemId to conteudo else null
+        }
+        if (existente != null) {
+            val (id, conteudo) = existente
+            publicar {
+                copy(
+                    tela = "editor",
+                    editor = conteudo.copy(senha = novo.senha),
+                    editandoId = id,
+                    erro = "",
+                    aviso = "Senha nova para ${conteudo.titulo.ifBlank { novo.titulo }}. Confira e toque em Salvar.",
+                )
+            }
+        } else {
+            publicar { copy(tela = "editor", editor = novo, editandoId = null, erro = "", aviso = "Confira os dados e toque em Salvar.") }
+        }
     }
 
     fun emSegundoPlano() {
