@@ -64,6 +64,10 @@ data class Ui(
     val motivoSenha: String = "",
     val abertoComSenha: Boolean = false,
     val versao: String = "",
+    val convite: String = "",
+    val emailConta: String = "",
+    /** O cofre ainda não foi registrado no servidor (primeira sincronização pendente). */
+    val semRegistro: Boolean = false,
 )
 
 data class LinhaItem(val id: ByteArray, val titulo: String, val usuario: String, val conflito: Boolean)
@@ -512,10 +516,43 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         val sessao = app.sessao ?: return
         trabalhar {
             val sincronizador = sincronizadorPara(sessao)
-            estado = sincronizador.sincronizar(estado, sessao, _ui.value.codigoTotp.ifBlank { null })
+            estado = sincronizador.sincronizar(estado, sessao, _ui.value.codigoTotp.ifBlank { null }, _ui.value.convite.ifBlank { null })
             ultimoToken = sincronizador.ultimoToken
             gravar()
-            publicar { comoLista(sessao).copy(aviso = "Sincronizado.") }
+            publicar { comoLista(sessao).copy(aviso = "Sincronizado.", convite = "") }
+        }
+    }
+
+    fun definirConvite(valor: String) = publicar { copy(convite = valor.filter { it.isLetterOrDigit() || it == '-' }.take(40)) }
+    fun definirEmailConta(valor: String) = publicar { copy(emailConta = valor.trim().take(254)) }
+
+    /** Liga este cofre a uma conta do serviço (plano e cobrança). Precisa de uma sincronização recente. */
+    fun ligarConta() {
+        val email = _ui.value.emailConta.trim()
+        if (!Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$").matches(email)) {
+            publicar { copy(erro = "Informe um e-mail válido.") }
+            return
+        }
+        val token = ultimoToken
+        if (token.isNullOrBlank()) {
+            publicar { copy(erro = "Sincronize antes de ligar o cofre à conta.") }
+            return
+        }
+        val base = servidorHttps(estado.url) ?: run {
+            publicar { copy(erro = "O servidor precisa ser um endereço https válido.") }
+            return
+        }
+        trabalhar {
+            try {
+                ClienteSync(base, pinsDe(estado.pins)).ligarConta(token, email)
+            } catch (erro: ErroRede) {
+                if (erro.codigo == "autenticacao_falhou") {
+                    ultimoToken = null
+                    throw ErroRede("rede", "A sessão venceu. Sincronize e tente de novo.")
+                }
+                throw erro
+            }
+            publicar { copy(aviso = "Enviamos um link para $email. Abra-o para ligar este cofre à conta.") }
         }
     }
 
@@ -531,7 +568,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
             val codigo = _ui.value.codigoTotp.ifBlank { null }
             val sincronizador = sincronizadorPara(sessaoAtual)
             if (sincronizarAntes) {
-                estado = sincronizador.sincronizar(estado, sessaoAtual, codigo)
+                estado = sincronizador.sincronizar(estado, sessaoAtual, codigo, _ui.value.convite.ifBlank { null })
                 ultimoToken = sincronizador.ultimoToken
                 gravar()
             }
@@ -678,7 +715,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
     }
 
     private fun Ui.comoLista(sessao: SessaoCripto): Ui =
-        copy(tela = "lista", itens = linhas(sessao), nomeCofre = nomeAtual(sessao), senha = "", erro = "")
+        copy(tela = "lista", itens = linhas(sessao), nomeCofre = nomeAtual(sessao), senha = "", erro = "", semRegistro = estado.cofreId.isBlank())
 
     private fun nomeAtual(sessao: SessaoCripto): String {
         val id = idNome(app.motor.sodium, sessao.cofreId)

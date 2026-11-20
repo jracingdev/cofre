@@ -17,12 +17,13 @@ class Sincronizador(private val idDoNome: ByteArray = ByteArray(0)) {
     var ultimoToken: String? = null
         private set
 
-    fun sincronizar(estado: EstadoBanco, sessao: SessaoCripto, codigoTotp: String?): EstadoBanco {
+    /** @param convite código de convite, usado só no primeiro registro do cofre no servidor. */
+    fun sincronizar(estado: EstadoBanco, sessao: SessaoCripto, codigoTotp: String?, convite: String? = null): EstadoBanco {
         val base = servidorHttps(estado.url) ?: throw ErroRede("rede", "O servidor precisa ser um endereço https válido.")
         val cliente = ClienteSync(base, pinsDe(estado.pins))
         var atual = estado
         if (atual.aparelhoId.isBlank()) atual = atual.copy(aparelhoId = bytesParaHex(ByteArray(16).also { SecureRandom().nextBytes(it) }))
-        if (atual.cofreId.isBlank()) atual = atual.copy(cofreId = cliente.registrar(atual.cabecalho))
+        if (atual.cofreId.isBlank()) atual = atual.copy(cofreId = cliente.registrar(atual.cabecalho, convite))
         val (desafioId, desafio) = cliente.desafio(atual.cofreId)
         val resposta = cliente.responder(desafioId, sessao.assinarDesafio(desafio), atual.aparelhoId)
         val token = if (resposta.optString("estado") == "segundo_fator") {

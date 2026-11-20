@@ -434,6 +434,8 @@ private fun Criar(ui: Ui, modelo: Modelo) {
     CampoSenha(ui.senha, modelo::definirSenha, "Senha mestra")
     CampoSenha(ui.confirmacao, modelo::definirConfirmacao, "Repita a senha")
     Explicacao("No mínimo 12 caracteres. A derivação usa Argon2id forte e pode levar alguns segundos.")
+    Campo(ui.convite, modelo::definirConvite, "Código de convite")
+    Explicacao("Durante o período de testes, o servidor só aceita cofre novo com convite. Ele é usado na primeira sincronização.")
     BotaoCheio("Criar", modelo::criar, habilitado = !ui.ocupado)
 }
 
@@ -684,7 +686,18 @@ private fun Ajustes(ui: Ui, modelo: Modelo) {
             Campo(ui.url, modelo::definirUrl, "Servidor (https)", teclado = KeyboardType.Uri)
             Campo(ui.pins, modelo::definirPins, "Pins sha256/ do certificado, um por linha", linhaUnica = false)
             Campo(ui.codigoTotp, modelo::definirCodigo, "Código TOTP, se o servidor pedir", teclado = KeyboardType.NumberPassword)
+            if (ui.semRegistro) {
+                Campo(ui.convite, modelo::definirConvite, "Código de convite")
+                Explicacao("O cofre ainda não está no servidor. Informe o convite e sincronize.")
+            }
             BotaoContorno("Sincronizar agora", modelo::sincronizar, habilitado = !ui.ocupado, icone = Icons.Filled.Sync)
+        }
+    }
+    Secao("Conta") {
+        Dentro {
+            Campo(ui.emailConta, modelo::definirEmailConta, "E-mail da conta", teclado = KeyboardType.Email)
+            Explicacao("A conta cuida do plano e da cobrança e não abre o cofre. Enviamos um link para confirmar o e-mail; ao abrir, este cofre fica ligado à conta.")
+            BotaoContorno("Ligar à conta", modelo::ligarConta, habilitado = !ui.ocupado)
         }
     }
     Secao("Nome") {

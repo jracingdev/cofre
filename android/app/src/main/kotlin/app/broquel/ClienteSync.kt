@@ -31,8 +31,9 @@ class ClienteSync(urlBase: String, pins: List<String>) {
         http = construtor.build()
     }
 
-    fun registrar(cabecalho: ByteArray): String {
+    fun registrar(cabecalho: ByteArray, convite: String? = null): String {
         val corpo = JSONObject().put("cabecalho", Base64.getEncoder().encodeToString(cabecalho))
+        if (!convite.isNullOrBlank()) corpo.put("convite", convite.trim().take(40))
         val resposta = enviar("POST", "/v1/cofre", corpo, null)
         return resposta.getString("cofre_id")
     }
@@ -76,6 +77,11 @@ class ClienteSync(urlBase: String, pins: List<String>) {
         } catch (erro: ErroRede) {
             if (erro.codigo != "autenticacao_falhou") throw erro
         }
+    }
+
+    /** Manda o link de confirmação para o e-mail; ao abrir, o cofre fica ligado à conta. A conta não abre o cofre. */
+    fun ligarConta(token: String, email: String) {
+        enviar("POST", "/v1/cofre/conta", JSONObject().put("email", email), token)
     }
 
     fun gravarItem(token: String, itemId: String, base: Int, blob: ByteArray): JSONObject {
