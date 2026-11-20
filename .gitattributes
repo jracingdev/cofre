@@ -4,3 +4,5 @@ android/gradlew text eol=lf
 *.bat text eol=crlf
 *.png binary
 *.jar binary
+*.apk binary
+*.zip binary

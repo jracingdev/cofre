@@ -17,8 +17,13 @@ final class CabecalhosSeguranca
         $resposta->headers->set('X-Frame-Options', 'DENY');
         $resposta->headers->set('Referrer-Policy', 'no-referrer');
         $resposta->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-        $resposta->headers->set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
-        $resposta->headers->set('X-Robots-Tag', 'noindex, nofollow');
+        // Só a página inicial traz política própria (também sem nada inline nem de fora). O resto fica com a mais fechada.
+        if (! $resposta->headers->has('Content-Security-Policy')) {
+            $resposta->headers->set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'; base-uri 'none'");
+        }
+        if (! $resposta->headers->has('X-Robots-Tag')) {
+            $resposta->headers->set('X-Robots-Tag', 'noindex, nofollow');
+        }
         $resposta->headers->removeCacheControlDirective('private');
         $resposta->headers->removeCacheControlDirective('public');
         $resposta->headers->addCacheControlDirective('no-store', true);

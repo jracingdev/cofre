@@ -214,6 +214,22 @@ Para o CI gerar um APK que atualiza por cima, cadastre a loja como segredo do re
 
 Com isso, cada execução publica também o artefato `broquel-release`. O `versionCode` sobe a cada execução (`100 +` o número dela). O release recusa HTTP: o servidor precisa estar em HTTPS. Guarde a loja e as senhas fora do Git e com cópia de segurança: sem a mesma chave, o celular não aceita mais atualizações.
 
+## Página inicial e downloads
+
+A rota `/` mostra a página do Broquel (`servidor/resources/views/inicio.blade.php`, estilo e script em `servidor/public/site/`). Ela tem CSP própria, sem nada inline e sem nada de outro site (`script-src 'self'; style-src 'self'; img-src 'self'`), com SRI no CSS e no JS. Não cria sessão nem cookie. O cofre web em `/app/` e a API continuam com as políticas de antes.
+
+Os arquivos baixáveis ficam em `servidor/public/downloads/` e o Nginx entrega direto:
+
+| Arquivo | De onde vem |
+| --- | --- |
+| `broquel.apk` | job "Publicar APK na página" do CI |
+| `broquel-extensao-chrome.zip` | build da extensão |
+| `broquel-extensao-firefox.zip` | build da extensão |
+
+A página calcula o tamanho e o SHA-256 de cada arquivo e mostra "Em breve" enquanto ele não existir. Um arquivo ao lado com o sufixo `.versao` (por exemplo `broquel.apk.versao`) dá a versão exibida.
+
+Para publicar um APK novo: com os segredos da assinatura cadastrados (seção acima), abra Actions, workflow Testes, "Run workflow" na `main`. Depois dos testes, o job confere a assinatura, copia o APK de release para `servidor/public/downloads/broquel.apk`, grava a versão, faz o commit na `main` e escreve o SHA-256 do arquivo e o do certificado no resumo da execução. Em seguida rode o deploy de sempre no servidor. Sem os segredos o job falha de propósito: o APK de debug muda de assinatura a cada execução e não pode ir para a página.
+
 ## aaPanel
 
 O caminho é o mesmo, com os cliques do painel:
@@ -227,7 +243,7 @@ O caminho é o mesmo, com os cliques do painel:
 
 ## O que conferir depois
 
-`https://cofre.seudominio/` responde `{"servico":"broquel","versao":1}`. `https://cofre.seudominio/app/` abre o Broquel. `APP_DEBUG` continua `false`. Um `GET` em `/v1/cofre/` com um id inventado não devolve cabeçalho. Os logs em `storage/logs` não devem ser `debug`.
+`https://cofre.seudominio/` abre a página do Broquel no navegador e responde `{"servico":"broquel","versao":1}` para quem pede JSON (`curl -H 'Accept: application/json'` ou `?formato=json`). `https://cofre.seudominio/app/` abre o Broquel. `APP_DEBUG` continua `false`. Um `GET` em `/v1/cofre/` com um id inventado não devolve cabeçalho. Os logs em `storage/logs` não devem ser `debug`.
 
 O primeiro cofre pode nascer no aplicativo ou no site. No primeiro acesso não há segundo fator. Com a sessão aberta, o site cadastra o TOTP ou a chave FIDO2. A partir daí todo login, no site e no aplicativo, pede o segundo fator. Os oito códigos de recuperação aparecem uma vez. Guarde-os fora do servidor.
 

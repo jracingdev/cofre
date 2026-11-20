@@ -3,6 +3,9 @@ name: Testes
 on:
   push:
   pull_request:
+  # Rodar à mão na main publica o APK assinado em servidor/public/downloads (job publicar-apk).
+  # Fica no mesmo workflow para o versionCode (10100 + número da execução) só subir.
+  workflow_dispatch:
 
 jobs:
   javascript:
@@ -137,3 +140,60 @@ jobs:
           name: broquel-release
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+  publicar-apk:
+    name: Publicar APK na página
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' }}
+    needs: [javascript, php, servidor, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Conferir o segredo da assinatura
+        env:
+          BROQUEL_KEYSTORE_B64: ${{ secrets.BROQUEL_KEYSTORE_B64 }}
+        run: |
+          if [ -z "$BROQUEL_KEYSTORE_B64" ]; then
+            echo "::error::Cadastre BROQUEL_KEYSTORE_B64 e as senhas (docs/IMPLANTACAO.md). Sem a mesma chave o celular não atualiza por cima."
+            exit 1
+          fi
+      - name: Baixar o APK assinado desta execução
+        uses: actions/download-artifact@v4
+        with:
+          name: broquel-release
+          path: ${{ runner.temp }}/release
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: build-tools;35.0.0
+      - name: Conferir assinatura e copiar
+        run: |
+          apk="$RUNNER_TEMP/release/app-release.apk"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$apk" | tee "$RUNNER_TEMP/certificado.txt"
+          mkdir -p servidor/public/downloads
+          cp "$apk" servidor/public/downloads/broquel.apk
+          echo "1.1.${GITHUB_RUN_NUMBER}" > servidor/public/downloads/broquel.apk.versao
+          {
+            echo "### APK publicado em /downloads/broquel.apk"
+            echo "Versão 1.1.${GITHUB_RUN_NUMBER}"
+            echo '```'
+            (cd servidor/public/downloads && sha256sum broquel.apk)
+            grep -i "SHA-256" "$RUNNER_TEMP/certificado.txt" || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit na main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add servidor/public/downloads/broquel.apk servidor/public/downloads/broquel.apk.versao
+          git commit -m "Publica o APK 1.1.${GITHUB_RUN_NUMBER} na página de downloads."
+          for tentativa in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          exit 1
