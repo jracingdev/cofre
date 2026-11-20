@@ -35,7 +35,8 @@ export type PedidoPopup =
   | { tipo: 'pendenteDaAba'; abaId: number }
   | { tipo: 'decidirPendente'; abaId: number; guardar: boolean }
   | { tipo: 'travaMinutos'; minutos: number }
-  | { tipo: 'gerar' };
+  | { tipo: 'gerar' }
+  | { tipo: 'ligarConta'; email: string };
 
 export type PedidoPagina =
   | { tipo: 'sugestoes' }

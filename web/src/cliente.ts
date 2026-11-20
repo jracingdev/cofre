@@ -15,16 +15,63 @@ export type ClienteExtra = {
   sessoes(token: string): Promise<Array<{ id: string; nome: string | null; revogada: boolean }>>;
   revogar(token: string, id: string): Promise<void>;
   sair(token: string): Promise<void>;
+  usarConvite(codigo: string): void;
+  ligarConta(token: string, email: string): Promise<void>;
+  plano(token: string): Promise<PlanoCofre>;
+};
+
+export type PlanoCofre = {
+  nome: string;
+  itens: number;
+  maxItens: number | null;
+  aparelhos: number;
+  maxAparelhos: number | null;
+  validoAte: string | null;
+  somenteLeitura: boolean;
 };
 
 class ClienteHttp implements Transporte, ClienteExtra {
+  /** Código de convite para o primeiro registro do cofre. Fica só na memória. */
+  private convite = '';
+
   constructor(
     private readonly buscar: Busca,
     private readonly base: string,
   ) {}
 
   registrar(cabecalhoB64: string): Promise<string> {
-    return this.enviar('POST', '/cofre', { cabecalho: cabecalhoB64 }, null).then((json) => String(json.cofre_id));
+    const corpo: Record<string, unknown> = { cabecalho: cabecalhoB64 };
+    if (this.convite) corpo.convite = this.convite;
+    return this.enviar('POST', '/cofre', corpo, null).then((json) => {
+      this.convite = '';
+      return String(json.cofre_id);
+    });
+  }
+
+  usarConvite(codigo: string): void {
+    this.convite = codigo.trim().slice(0, 40);
+  }
+
+  ligarConta(token: string, email: string): Promise<void> {
+    return this.enviar('POST', '/cofre/conta', { email }, token).then(() => undefined);
+  }
+
+  plano(token: string): Promise<PlanoCofre> {
+    return this.enviar('GET', '/plano', null, token).then((json) => {
+      const situacao = (json.situacao ?? {}) as Record<string, unknown>;
+      const plano = (situacao.plano ?? {}) as Record<string, unknown>;
+      const uso = (json.uso ?? {}) as Record<string, unknown>;
+      const limite = (valor: unknown): number | null => (typeof valor === 'number' ? valor : null);
+      return {
+        nome: String(plano.nome ?? ''),
+        itens: Number(uso.itens ?? 0),
+        maxItens: limite(plano.max_itens),
+        aparelhos: Number(uso.aparelhos ?? 0),
+        maxAparelhos: limite(plano.max_aparelhos),
+        validoAte: typeof situacao.valido_ate === 'string' ? situacao.valido_ate : null,
+        somenteLeitura: Boolean(situacao.somente_leitura),
+      };
+    });
   }
 
   cabecalho(cofreId: string): Promise<string> {

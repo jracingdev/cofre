@@ -1,2 +1,2 @@
-deb9b60a274f227a0e57278531ceeb42e7cb3abe5e58be560c1d4228b207b1bf  broquel-extensao-chrome.zip
-eb576e793ed24ea3629acadc3c59f8a15a1b3281d9ba038679255e7599b47b4d  broquel-extensao-firefox.zip
+ac0f12d9f2b5c2c3064facc13a2260ee819c94f1596f1110d01f162e350e2965  broquel-extensao-chrome.zip
+c069ba55c7f87e931a345ea1f8b988fd5256cc78d5a3ee858067706e2917253a  broquel-extensao-firefox.zip

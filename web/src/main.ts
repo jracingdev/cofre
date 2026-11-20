@@ -9,7 +9,7 @@ import {
   lerCabecalho,
   type SessaoCofre,
 } from '@broquel/cripto';
-import { criarCliente } from './cliente.js';
+import { criarCliente, type PlanoCofre } from './cliente.js';
 import { deBase64, paraHex } from './codec.js';
 import { apagarDeposito, gravarDeposito, lerDeposito } from './deposito.js';
 import { alterarItem, excluirItem, gravarNome, incluirItem, lerConteudo, nomeDoCofre } from './itens.js';
@@ -55,6 +55,8 @@ const vista: Vista = {
   nome: '',
   apelido: '',
   saidaSemServidor: false,
+  plano: '',
+  pedeConvite: false,
 };
 
 const rascunho: Rascunho = {
@@ -67,6 +69,8 @@ const rascunho: Rascunho = {
   senhaNova: '',
   nome: '',
   apelido: '',
+  convite: '',
+  email: '',
 };
 
 const vigia = criarVigia(() => bloqueioSegundos * 1000, () => Date.now(), () => { travar(); });
@@ -143,6 +147,12 @@ const acoes: Acoes = {
   revogar: (id) => { void revogar(id); },
   gravarNome: () => { void guardarNome(); },
   gravarApelido: () => { void guardarApelido(); },
+  ligarConta: () => { void ligarConta(); },
+  guardarConvite: () => {
+    cliente.usarConvite(rascunho.convite);
+    vista.aviso = 'Convite guardado. Sincronize para registrar o cofre no servidor.';
+    ir('lista');
+  },
   bloqueio: (segundos) => {
     bloqueioSegundos = Math.min(300, Math.max(15, segundos));
     vista.bloqueioSegundos = bloqueioSegundos;
@@ -180,6 +190,8 @@ async function criar(): Promise<void> {
   await ocupado(async () => {
     const criado = await criarCofre(rascunho.senha);
     limparSenhas();
+    cliente.usarConvite(rascunho.convite);
+    rascunho.convite = '';
     sessao = criado.sessao;
     estado = {
       ...estadoVazio(),
@@ -307,6 +319,32 @@ async function sincronizarAgora(): Promise<void> {
   });
 }
 
+async function ligarConta(): Promise<void> {
+  const email = rascunho.email.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    vista.erro = 'Informe um e-mail válido.';
+    desenhar(raiz, vista, rascunho, acoes);
+    return;
+  }
+  if (!token) {
+    vista.erro = 'Sincronize antes de ligar o cofre à conta.';
+    desenhar(raiz, vista, rascunho, acoes);
+    return;
+  }
+  await ocupado(async () => {
+    await cliente.ligarConta(token, email);
+    vista.aviso = `Enviamos um link para ${email}. Abra-o para confirmar e ligar este cofre à conta.`;
+  });
+}
+
+function descreverPlano(plano: PlanoCofre): string {
+  const limite = (usado: number, maximo: number | null): string => (maximo === null ? `${usado}` : `${usado} de ${maximo}`);
+  const partes = [`Plano ${plano.nome}`, `${limite(plano.itens, plano.maxItens)} itens`, `${limite(plano.aparelhos, plano.maxAparelhos)} aparelhos`];
+  if (plano.validoAte) partes.push(`válido até ${new Date(plano.validoAte).toLocaleDateString('pt-BR')}`);
+  if (plano.somenteLeitura) partes.push('somente leitura');
+  return partes.join(' · ');
+}
+
 function pedirFator(metodos: string[]): Promise<Fator> {
   vista.metodos = metodos;
   vista.ocupado = false;
@@ -432,11 +470,17 @@ async function mostrarLista(): Promise<void> {
   vista.linhas = linhas;
   vista.nome = await nomeDoCofre(sessao, estado.itens);
   vigia.armar();
+  vista.pedeConvite = !estado.registrado;
   if (token) {
     try {
       vista.sessoes = await cliente.sessoes(token);
     } catch {
       vista.sessoes = [];
+    }
+    try {
+      vista.plano = descreverPlano(await cliente.plano(token));
+    } catch {
+      vista.plano = '';
     }
   }
   ir('lista');
@@ -494,6 +538,7 @@ function esquecerCofreLocal(): void {
   vista.codigos = [];
   vista.linhas = [];
   vista.sessoes = [];
+  vista.plano = '';
   vista.metodos = [];
   linhas = [];
   editandoId = null;

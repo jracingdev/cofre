@@ -37,6 +37,10 @@ export type Vista = {
   apelido: string;
   /** O Sair não alcançou o servidor: a tela oferece apagar só daqui. */
   saidaSemServidor: boolean;
+  /** Resumo do plano do cofre no servidor, vazio enquanto não sincronizou. */
+  plano: string;
+  /** O cofre ainda não foi registrado no servidor: a tela pede o convite. */
+  pedeConvite: boolean;
 };
 
 export type Acoes = {
@@ -72,6 +76,8 @@ export type Acoes = {
   bloqueio(segundos: number): void;
   gravarNome(): void;
   gravarApelido(): void;
+  ligarConta(): void;
+  guardarConvite(): void;
 };
 
 export type Rascunho = {
@@ -84,6 +90,8 @@ export type Rascunho = {
   senhaNova: string;
   nome: string;
   apelido: string;
+  convite: string;
+  email: string;
 };
 
 export function desenhar(raiz: HTMLElement, vista: Vista, rascunho: Rascunho, acoes: Acoes): void {
@@ -154,6 +162,8 @@ function criar(rascunho: Rascunho, acoes: Acoes): HTMLElement {
     paragrafo('No mínimo 12 caracteres. A derivação usa Argon2id forte e pode travar esta aba por alguns segundos.', 'mudo'),
     campo('Senha mestra', 'password', rascunho.senha, (valor) => { rascunho.senha = valor; }),
     campo('Repita a senha', 'password', rascunho.confirmacao, (valor) => { rascunho.confirmacao = valor; }, acoes.confirmarCriacao),
+    campo('Código de convite', 'text', rascunho.convite, (valor) => { rascunho.convite = valor; }),
+    paragrafo('Durante o período de testes, o servidor só aceita cofre novo com convite.', 'mudo'),
     botao('Criar', acoes.confirmarCriacao, false),
     botao('Voltar', () => acoes.ir('inicio'), false, true),
   );
@@ -288,6 +298,15 @@ function ajustes(vista: Vista, rascunho: Rascunho, acoes: Acoes): HTMLElement {
   bloco.append(campo('Apelido neste navegador', 'text', rascunho.apelido, (valor) => { rascunho.apelido = valor; }));
   bloco.append(paragrafo('O apelido aparece nesta tela de abrir, antes da senha. Fica gravado neste navegador, sem a cifra do cofre, e não é enviado ao servidor.', 'mudo'));
   bloco.append(botao('Guardar apelido', acoes.gravarApelido, false, true));
+  if (vista.pedeConvite) {
+    bloco.append(campo('Código de convite', 'text', rascunho.convite, (valor) => { rascunho.convite = valor; }));
+    bloco.append(paragrafo('O cofre ainda não está no servidor. Informe o convite e sincronize.', 'mudo'));
+    bloco.append(botao('Usar convite', acoes.guardarConvite, vista.ocupado, true));
+  }
+  if (vista.plano) bloco.append(paragrafo(vista.plano, 'mudo'));
+  bloco.append(campo('E-mail da conta', 'email', rascunho.email, (valor) => { rascunho.email = valor; }));
+  bloco.append(paragrafo('A conta cuida do plano e da cobrança e não abre o cofre. Enviamos um link para confirmar o e-mail; ao abrir, este cofre fica ligado à conta.', 'mudo'));
+  bloco.append(botao('Ligar à conta', acoes.ligarConta, vista.ocupado, true));
   bloco.append(paragrafo(`Bloqueio por inatividade: ${vista.bloqueioSegundos}s`, ''));
   bloco.append(controle(15, 300, 15, vista.bloqueioSegundos, acoes.bloqueio));
   bloco.append(paragrafo('O site fala só com este servidor. Não há script de fora e a chave fica só na memória, enquanto o cofre está aberto.', 'mudo'));

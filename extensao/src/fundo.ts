@@ -383,6 +383,23 @@ async function tratarPopup(pedido: Pedido): Promise<unknown> {
       await chrome.storage.local.set({ travaMinutos: minutos });
       return estadoAtual();
     }
+    case 'ligarConta': {
+      const email = pedido.email.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(email) || email.length > 254) throw new Error('Informe um e-mail válido.');
+      const dados = await lerSessao();
+      if (!dados.segredo) throw new Error('Destrave o cofre antes.');
+      if (!dados.token) throw new Error('Sincronize antes de ligar o cofre à conta.');
+      try {
+        await cliente.ligarConta(dados.token, email);
+      } catch (falha) {
+        if (falha instanceof ErroSync && falha.codigo === 'autenticacao_falhou') {
+          await chrome.storage.session.remove('token');
+          throw new Error('A sessão venceu. Sincronize e tente de novo.');
+        }
+        throw falha;
+      }
+      return { enviado: true };
+    }
     case 'gerar':
       return gerarSenha({ nivel: estadoInicial().nivel, comprimento: estadoInicial().comprimento });
     default:

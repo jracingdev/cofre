@@ -257,6 +257,13 @@ function blocoAjustes(): Node[] {
     estado = await pedir<Estado>({ tipo: 'travaMinutos', minutos: Number(trava.value) });
     aviso = 'Tempo de trava guardado.';
   }));
+  const conta = campo('E-mail da conta', { type: 'email', autocomplete: 'email' });
+  const ligar = el('button', { type: 'button', textContent: 'Ligar à conta', disabled: ocupado });
+  ligar.addEventListener('click', () => void acao(async () => {
+    const email = conta.entrada.value.trim();
+    await pedir<{ enviado: boolean }>({ tipo: 'ligarConta', email });
+    aviso = `Enviamos um link para ${email}. Abra-o para ligar este cofre à conta.`;
+  }));
   const sair = el('button', { type: 'button', textContent: 'Desconectar este cofre' });
   sair.addEventListener('click', () => confirmarDesconectar());
   return [
@@ -267,6 +274,10 @@ function blocoAjustes(): Node[] {
       trava,
       el('p', { className: 'mudo', textContent: 'O Broquel também trava ao bloquear o computador e ao fechar o navegador.' }),
       el('p', { className: 'mudo', textContent: `Identificador: ${estado?.identificador ?? ''}` }),
+      conta.rotulo,
+      conta.entrada,
+      el('p', { className: 'mudo', textContent: 'A conta cuida do plano e da cobrança e não abre o cofre.' }),
+      ligar,
       sair,
     ),
   ];
