@@ -330,9 +330,11 @@ function ajustes(vista: Vista, rascunho: Rascunho, acoes: Acoes): HTMLElement {
   const extras = el('div', 'acoes');
   extras.append(
     botao('Trocar senha mestra', acoes.trocarSenha, vista.ocupado, true),
-    botao('Gerar outro kit', acoes.girarKit, vista.ocupado, true),
   );
   bloco.append(extras);
+  bloco.append(paragrafo('Gerar outro kit invalida o kit atual. Use se ele foi visto por alguém ou se você o perdeu. A senha e os itens não mudam. Nos outros aparelhos, saia e traga o cofre de novo.', 'mudo'));
+  bloco.append(campo('Senha mestra atual', 'password', rascunho.senha, (valor) => { rascunho.senha = valor; }));
+  bloco.append(botao('Gerar outro kit', acoes.girarKit, vista.ocupado, true));
   for (const sessao of vista.sessoes) {
     const linhaSessao = el('div', 'faixa');
     linhaSessao.append(paragrafo(`${sessao.nome ?? 'aparelho'} ${sessao.revogada ? '(revogada)' : ''}`, 'mudo'));

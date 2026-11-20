@@ -106,6 +106,22 @@ class VetoresTest {
     }
 
     @Test
+    fun girarKitTrocaSoOEmbrulhoDoKit() {
+        val (cabecalho, kitAntigo, sessao) = motor.criar("correta-cavalo-bateria-broquel", 2, 8192, permitirFracos = true)
+        val meta = MetadadosItem(sessao.cofreId, sodium.randomBytesBuf(16), 1, 10, 11, false)
+        val blob = sessao.cifrarItem(meta, "segredo".toByteArray())
+        val (novo, kitNovo) = motor.girarKit(cabecalho, sessao)
+        assertEquals(TAMANHO_CABECALHO, novo.size)
+        assertContentEquals(cabecalho.copyOfRange(0, 221), novo.copyOfRange(0, 221))
+        assertTrue(kitNovo != kitAntigo)
+        assertFailsWith<ErroCripto> { motor.abrirComKit(novo, kitAntigo) }
+        assertEquals("segredo", motor.abrirComKit(novo, kitNovo).decifrarItem(blob).conteudo.toString(Charsets.UTF_8))
+        assertEquals("segredo", motor.abrir(novo, "correta-cavalo-bateria-broquel").decifrarItem(blob).conteudo.toString(Charsets.UTF_8))
+        val (_, _, outra) = motor.criar("outra-senha-bem-longa-aqui", 2, 8192, permitirFracos = true)
+        assertFailsWith<ErroCripto> { motor.girarKit(cabecalho, outra) }
+    }
+
+    @Test
     fun controlesEConflito() {
         assertEquals(4, estadoInicial().nivel)
         assertEquals(40, estadoInicial().comprimento)

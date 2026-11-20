@@ -118,6 +118,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
             estado = estado.copy(
                 cabecalho = cabecalho,
                 cofreId = "",
+                cabecalhoPendente = false,
                 aparelhoId = bytesParaHex(ByteArray(16).also { SecureRandom().nextBytes(it) }),
             )
             estado = Desbloqueio.aoAbrirComSenha(Desbloqueio.aoDesligar(estado), System.currentTimeMillis(), bootAtual())
@@ -288,7 +289,39 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         return "${info.versionName} (${PackageInfoCompat.getLongVersionCode(info)})"
     }
 
-    fun kitGuardado() = publicar { comoLista(app.sessao!!) }
+    fun kitGuardado() {
+        val sessao = app.sessao ?: return
+        publicar { comoLista(sessao).copy(kit = "") }
+        // O kit novo só vale no servidor depois de enviar o cabeçalho.
+        if (estado.cabecalhoPendente && estado.cofreId.isNotBlank()) sincronizar()
+    }
+
+    /** Abre a tela que pede a senha mestra antes de gerar outro kit. */
+    fun pedirNovoKit() = publicar { copy(tela = "novoKit", senha = "", erro = "", aviso = "") }
+
+    /**
+     * Gera outro kit de recuperação. Pede a senha mestra de novo: quem só pegou o celular destravado
+     * não cria um kit que abra o cofre depois. O formato do cofre não muda.
+     */
+    fun girarKit() {
+        val sessao = app.sessao ?: return
+        val senha = _ui.value.senha
+        if (senha.isEmpty()) {
+            publicar { copy(erro = "Digite a senha mestra.") }
+            return
+        }
+        trabalhar {
+            try {
+                app.motor.abrir(estado.cabecalho, senha).travar()
+            } catch (erro: ErroCripto) {
+                throw ErroCripto("autenticacao_falhou", "Senha mestra incorreta.")
+            }
+            val (cabecalho, kit) = app.motor.girarKit(estado.cabecalho, sessao)
+            estado = estado.copy(cabecalho = cabecalho, cabecalhoPendente = true)
+            gravar()
+            publicar { copy(tela = "kit", kit = kit, senha = "", erro = "", identificador = identificadorDe(cabecalho)) }
+        }
+    }
 
     fun novoItem() = publicar { copy(tela = "editor", editor = ConteudoLogin(), editandoId = null, erro = "") }
 
@@ -487,7 +520,7 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
             }
             // A biometria guardada é do cofre anterior.
             apagarBio()
-            estado = Desbloqueio.aoDesligar(estado).copy(cabecalho = cab, cofreId = id, itens = emptyList(), cursor = 0)
+            estado = Desbloqueio.aoDesligar(estado).copy(cabecalho = cab, cofreId = id, itens = emptyList(), cursor = 0, cabecalhoPendente = false)
             gravar()
             atualizarDesbloqueio()
             publicar { copy(tela = "desbloquear", identificador = id, aviso = "Cabeçalho recebido. Abra com a senha mestra.", erro = "") }

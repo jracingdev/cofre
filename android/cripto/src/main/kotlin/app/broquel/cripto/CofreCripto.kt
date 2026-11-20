@@ -134,6 +134,29 @@ class MotorCripto(val sodium: LazySodium) {
         return sessao(cab, segredo)
     }
 
+    /**
+     * Gera outro kit de recuperação. Copia o embrulho da senha como está e grava um embrulho de kit novo.
+     * O formato e o tamanho do cabeçalho (357 bytes) não mudam. O kit antigo deixa de abrir este cabeçalho.
+     */
+    fun girarKit(cabecalho: ByteArray, sessao: SessaoCripto): Pair<ByteArray, String> {
+        val cab = lerCabecalho(cabecalho)
+        if (!cab.cofreId.contentEquals(sessao.cofreId) || !segredosIguais(sodium, cab.pk, sessao.chavePublica)) {
+            throw ErroCripto("estado_invalido", "O cabeçalho não pertence a esta sessão.")
+        }
+        val kit = sodium.randomBytesBuf(32)
+        val segredo = sessao.exportarSegredo()
+        val embrulhoKit = derivarChaveEmbrulho(kit)
+        try {
+            val wrapKit = embrulhar(sodium, embrulhoKit, sodium.randomBytesBuf(24), aadKit(cab.cofreId, cab.pk), segredo)
+            val novo = montarCabecalho(cab.cofreId, cab.opslimit, cab.memlimit, cab.sal, cab.pk, cab.wrapSenha, wrapKit)
+            return novo to codificarKit(kit)
+        } finally {
+            Arrays.fill(embrulhoKit, 0)
+            Arrays.fill(segredo, 0)
+            Arrays.fill(kit, 0)
+        }
+    }
+
     fun codificarKit(segredo: ByteArray): String {
         if (segredo.size != 32) throw ErroCripto("kit_invalido", "Kit de recuperação inválido.")
         val soma = checksum(segredo)

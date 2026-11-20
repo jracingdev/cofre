@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Pin
 import androidx.compose.material.icons.filled.Search
@@ -124,7 +125,7 @@ fun Tema(conteudo: @Composable () -> Unit) {
 /** Para onde o botão voltar leva em cada tela. */
 private fun telaAnterior(tela: String): String? = when (tela) {
     "editor", "gerador", "ajustes" -> "lista"
-    "sobre", "sair" -> "ajustes"
+    "sobre", "sair", "novoKit" -> "ajustes"
     "criar", "trazer" -> "inicio"
     else -> null
 }
@@ -139,6 +140,7 @@ private fun tituloDa(ui: Ui): String = when (ui.tela) {
     "criar" -> "Criar cofre"
     "trazer" -> "Já tenho um cofre"
     "kit" -> "Kit de recuperação"
+    "novoKit" -> "Gerar novo kit"
     else -> ""
 }
 
@@ -206,6 +208,7 @@ fun App(modelo: Modelo) {
                         "criar" -> Criar(ui, modelo)
                         "trazer" -> Trazer(ui, modelo)
                         "kit" -> Kit(ui, modelo)
+                        "novoKit" -> NovoKit(ui, modelo)
                         "desbloquear" -> Desbloquear(ui, modelo)
                         "editor" -> Editor(ui, modelo)
                         "gerador" -> GeradorTela(ui, modelo)
@@ -455,6 +458,20 @@ private fun Kit(ui: Ui, modelo: Modelo) {
 }
 
 @Composable
+private fun NovoKit(ui: Ui, modelo: Modelo) {
+    Explicacao(
+        "Gera outro kit de recuperação e invalida o atual. Use se o kit foi visto por alguém ou se você o perdeu. " +
+            "A senha mestra e os itens não mudam.",
+    )
+    Explicacao(
+        "Depois de anotar o kit novo, o celular sincroniza para o servidor guardar a troca. " +
+            "Nos outros aparelhos, saia e traga o cofre de novo para eles também deixarem de aceitar o kit antigo.",
+    )
+    CampoSenha(ui.senha, modelo::definirSenha, "Senha mestra")
+    BotaoCheio("Gerar novo kit", modelo::girarKit, habilitado = !ui.ocupado && ui.senha.isNotEmpty())
+}
+
+@Composable
 private fun Desbloquear(ui: Ui, modelo: Modelo) {
     Cabecalho(ui.apelido.ifBlank { "Cofre travado" })
     CampoSenha(ui.senha, modelo::definirSenha, "Senha mestra")
@@ -699,6 +716,14 @@ private fun Ajustes(ui: Ui, modelo: Modelo) {
             Explicacao("A conta cuida do plano e da cobrança e não abre o cofre. Enviamos um link para confirmar o e-mail; ao abrir, este cofre fica ligado à conta.")
             BotaoContorno("Ligar à conta", modelo::ligarConta, habilitado = !ui.ocupado)
         }
+    }
+    Secao("Kit de recuperação") {
+        Linha(
+            "Gerar novo kit",
+            "Invalida o kit atual. Use se ele foi visto por alguém ou se perdeu.",
+            Icons.Filled.Key,
+            aoTocar = modelo::pedirNovoKit,
+        )
     }
     Secao("Nome") {
         Dentro {

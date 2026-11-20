@@ -46,6 +46,11 @@ export type EstadoSync = {
   itens: ItemLocal[];
   /** Apelido só deste navegador. Não entra na sincronização. */
   apelido: string;
+  /**
+   * O cabeçalho mudou aqui (senha ou kit novos) e ainda não foi enviado.
+   * Sem isso, um aparelho com cópia antiga desfaria no servidor um kit novo gerado em outro.
+   */
+  cabecalhoPendente?: boolean;
 };
 
 export type Cabeca = {
@@ -136,7 +141,7 @@ export async function sincronizar(
   const assinatura = await sessao.assinarDesafio(deBase64(desafio.desafio));
   const resposta = await transporte.responder(desafio.desafio_id, paraBase64(assinatura), aparelhoId);
   const token = await tokenDaResposta(resposta, transporte, fator);
-  await transporte.atualizarCabecalho(token, paraBase64(estado.cabecalho));
+  if (estado.cabecalhoPendente) await transporte.atualizarCabecalho(token, paraBase64(estado.cabecalho));
 
   let itens = estado.itens;
   for (let volta = 0; volta < 2; volta += 1) {
@@ -180,7 +185,7 @@ export async function sincronizar(
   return {
     token,
     retrocesso: aviso.retrocesso,
-    estado: { cofreId, cabecalho: estado.cabecalho, cursor, aparelhoId, registrado, itens, apelido: estado.apelido },
+    estado: { cofreId, cabecalho: estado.cabecalho, cursor, aparelhoId, registrado, itens, apelido: estado.apelido, cabecalhoPendente: false },
   };
 }
 

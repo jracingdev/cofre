@@ -248,6 +248,7 @@ async function senhaNova(): Promise<void> {
   }
   await ocupado(async () => {
     estado.cabecalho = await sessao!.trocarSenhaMestra(estado.cabecalho, rascunho.senhaNova);
+    estado.cabecalhoPendente = true;
     limparSenhas();
     await persistir();
     await mostrarLista();
@@ -399,9 +400,24 @@ async function registrarChave(): Promise<void> {
 
 async function girarKit(): Promise<void> {
   if (!sessao) return;
+  if (rascunho.senha.length === 0) {
+    vista.erro = 'Digite a senha mestra atual para gerar outro kit.';
+    desenhar(raiz, vista, rascunho, acoes);
+    return;
+  }
   await ocupado(async () => {
+    // Pede a senha de novo: quem só achou a aba aberta não cria um kit que abra o cofre depois.
+    try {
+      const conferida = await abrirCofre(estado.cabecalho, rascunho.senha);
+      conferida.travar();
+    } catch {
+      throw new ErroSync('autenticacao_falhou', 'Senha mestra incorreta.');
+    } finally {
+      rascunho.senha = '';
+    }
     const girado = await sessao!.girarKitRecuperacao(estado.cabecalho);
     estado.cabecalho = girado.cabecalho;
+    estado.cabecalhoPendente = true;
     vista.kit = girado.kitRecuperacao;
     await persistir();
     ir('kit');
@@ -412,6 +428,7 @@ async function trocarSenha(): Promise<void> {
   if (!sessao || rascunho.senhaNova.length === 0) return;
   await ocupado(async () => {
     estado.cabecalho = await sessao!.trocarSenhaMestra(estado.cabecalho, rascunho.senhaNova);
+    estado.cabecalhoPendente = true;
     limparSenhas();
     await persistir();
     vista.aviso = 'Senha trocada neste navegador. Sincronize para publicar o cabeçalho.';

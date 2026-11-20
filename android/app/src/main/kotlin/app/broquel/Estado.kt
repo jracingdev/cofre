@@ -27,6 +27,8 @@ data class EstadoBanco(
     val ultimaSenhaMestraEm: Long = 0,
     val bootSenhaMestra: Int = Int.MIN_VALUE,
     val falhasDesbloqueio: Int = 0,
+    /** O cabeçalho mudou neste aparelho (kit novo) e ainda não foi enviado ao servidor. */
+    val cabecalhoPendente: Boolean = false,
     val itens: List<ItemGuardado> = emptyList(),
 )
 
@@ -61,6 +63,7 @@ fun EstadoBanco.paraJson(): String {
         .put("ultimaSenhaMestraEm", ultimaSenhaMestraEm)
         .put("bootSenhaMestra", bootSenhaMestra)
         .put("falhasDesbloqueio", falhasDesbloqueio)
+        .put("cabecalhoPendente", cabecalhoPendente)
         .put("itens", itensJson)
         .toString()
 }
@@ -104,6 +107,7 @@ fun estadoDeJson(texto: String): EstadoBanco {
         ultimaSenhaMestraEm = json.optLong("ultimaSenhaMestraEm"),
         bootSenhaMestra = json.optInt("bootSenhaMestra", Int.MIN_VALUE),
         falhasDesbloqueio = json.optInt("falhasDesbloqueio"),
+        cabecalhoPendente = json.optBoolean("cabecalhoPendente"),
         itens = lista,
     )
 }

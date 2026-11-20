@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   PARAMETROS_KDF_TESTE,
   abrirCofre,
+  abrirComKit,
   criarCofre,
   lerCabecalho,
   lerPrefixoItem,
@@ -208,6 +209,28 @@ function json(corpo: unknown, status = 200): Response {
   return new Response(JSON.stringify(corpo), { status, headers: { 'content-type': 'application/json' } });
 }
 
+test('kit novo vale no servidor e aparelho com cópia antiga não o desfaz', async () => {
+  const senha = 'correta-cavalo-bateria-broquel';
+  const criado = await criarCofre(senha, { parametros: PARAMETROS_KDF_TESTE, permitirParametrosFracos: true });
+  const servidor = new ServidorFalso();
+  const relogio = relogioFixo();
+  const base: EstadoSync = { cofreId: '', cabecalho: criado.cabecalho, cursor: 0, aparelhoId: '', registrado: false, itens: [], apelido: '' };
+  const primeiro = (await sincronizar(base, criado.sessao, servidor, null, relogio)).estado;
+  const id = primeiro.cofreId;
+  const antigo: EstadoSync = { ...primeiro, aparelhoId: paraHex(randomBytes(16)) };
+
+  const girado = await criado.sessao.girarKitRecuperacao(criado.cabecalho);
+  assert.equal(girado.cabecalho.length, 357);
+  const comKitNovo = (await sincronizar({ ...primeiro, cabecalho: girado.cabecalho, cabecalhoPendente: true }, criado.sessao, servidor, null, relogio)).estado;
+  assert.equal(comKitNovo.cabecalhoPendente, false);
+  assert.deepEqual(servidor.cabecalhos.get(id), girado.cabecalho);
+
+  await sincronizar(antigo, criado.sessao, servidor, null, relogio);
+  assert.deepEqual(servidor.cabecalhos.get(id), girado.cabecalho);
+  await assert.rejects(abrirComKit(servidor.cabecalhos.get(id)!, criado.kitRecuperacao));
+  await abrirComKit(servidor.cabecalhos.get(id)!, girado.kitRecuperacao);
+});
+
 function relogioFixo(): Relogio {
   let n = 0;
   return {
@@ -222,7 +245,7 @@ function relogioFixo(): Relogio {
 }
 
 class ServidorFalso implements Transporte {
-  private cabecalhos = new Map<string, Uint8Array>();
+  cabecalhos = new Map<string, Uint8Array>();
   private guardados = new Map<string, Map<string, Cabeca>>();
   private desafios = new Map<string, { cofreId: string; bytes: Uint8Array; usado: boolean }>();
   private sessoes = new Map<string, string>();

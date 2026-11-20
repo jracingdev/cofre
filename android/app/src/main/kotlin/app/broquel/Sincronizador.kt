@@ -36,6 +36,11 @@ class Sincronizador(private val idDoNome: ByteArray = ByteArray(0)) {
             resposta.getString("token")
         }
         ultimoToken = token
+        // Só envia o cabeçalho quando ele mudou aqui. Assim um aparelho com cópia antiga não desfaz um kit novo.
+        if (atual.cabecalhoPendente) {
+            cliente.atualizarCabecalho(token, atual.cabecalho)
+            atual = atual.copy(cabecalhoPendente = false)
+        }
         var itens = atual.itens
         repeat(2) {
             val proximos = mutableListOf<ItemGuardado>()
