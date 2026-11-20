@@ -1,0 +1,92 @@
+:root {
+  color-scheme: dark;
+  --azul: #1d4ed8;
+  --azul-claro: #3b6bff;
+  --fundo: #071018;
+  --superficie: #101820;
+  --texto: #e8eef5;
+  --mudo: #9aabbc;
+  --erro: #ffb4ab;
+  --linha: #243140;
+  --ok: #b7f0c8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  width: 360px;
+  min-height: 200px;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 14px/1.45 system-ui, sans-serif;
+}
+
+main { padding: 14px; }
+
+.marca { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.marca img { width: 28px; height: 28px; }
+.marca strong { font-size: 16px; }
+.marca .mudo { margin-left: auto; }
+
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--mudo); margin: 14px 0 6px; }
+
+label { display: block; margin: 8px 0 4px; color: var(--mudo); font-size: 13px; }
+
+input, select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--linha);
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+}
+
+input:focus, select:focus, button:focus-visible { outline: 2px solid var(--azul-claro); outline-offset: 1px; }
+
+button {
+  border: 1px solid var(--linha);
+  background: var(--superficie);
+  color: var(--texto);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.principal { background: var(--azul); border-color: var(--azul); width: 100%; margin-top: 12px; padding: 9px; }
+button:disabled { opacity: .6; cursor: progress; }
+button.link { border: 0; background: none; color: var(--azul-claro); padding: 0; }
+
+.mudo { color: var(--mudo); font-size: 12px; }
+.erro { color: var(--erro); margin: 8px 0 0; }
+.aviso { color: var(--ok); margin: 8px 0 0; }
+
+.cartao {
+  border: 1px solid var(--linha);
+  background: var(--superficie);
+  border-radius: 10px;
+  padding: 10px;
+  margin: 8px 0;
+}
+
+.conta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--linha);
+}
+
+.conta:last-child { border-bottom: 0; }
+.conta .texto { flex: 1; min-width: 0; }
+.conta .texto div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conta button { padding: 5px 9px; font-size: 13px; }
+
+.lista { max-height: 220px; overflow-y: auto; }
+
+.rodape { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.rodape button { flex: 1; padding: 7px 6px; font-size: 13px; white-space: nowrap; }
+
+.gerada { font-family: ui-monospace, monospace; word-break: break-all; }

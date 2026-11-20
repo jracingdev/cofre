@@ -1,0 +1,21 @@
+{
+  "name": "@broquel/extensao",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Extensão de navegador do Broquel: sugere guardar e preenche senhas. A cifra fica na extensão.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node --import tsx --test test/*.test.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "libsodium-wrappers-sumo": "0.8.4"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.1.4",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

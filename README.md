@@ -18,7 +18,8 @@ O servidor, o aplicativo e o cofre web já estão no repositório. A etapa que f
 2. **Servidor Laravel (PHP 8.2).** Feito, em `servidor/`. Sincronização, login por desafio, segundo fator e limites. A instalação no VPS está em [docs/IMPLANTACAO.md](docs/IMPLANTACAO.md). O servidor não decifra nada.
 3. **Aplicativo Android (Kotlin).** Feito, em `android/`. Nome Broquel, ícone do escudo longo azul, gerador, cofre offline cifrado e sincronização com o servidor. O APK de debug sai como artefato do CI.
 4. **Cofre web.** Feito, em `web/`. A cifra fica no navegador, com a biblioteca `packages/cripto`. O build publicado fica em `servidor/public/app/` e abre em `/app/`.
-5. **Revisão de segurança.** Feita em [docs/AUDITORIA.md](docs/AUDITORIA.md). O que dava para corrigir no código foi corrigido. Uma auditoria externa continua recomendada.
+5. **Extensão de navegador.** Feita, em `extensao/` (Chrome, Edge, Firefox). Sugere guardar senhas novas e preenche só no site certo, com a mesma regra de domínio do Android. Os pacotes ficam em `servidor/public/downloads/`. Instalação e modelo de segurança em [extensao/README.md](extensao/README.md).
+6. **Revisão de segurança.** Feita em [docs/AUDITORIA.md](docs/AUDITORIA.md). O que dava para corrigir no código foi corrigido. Uma auditoria externa continua recomendada.
 
 ## O que a gente assume que o atacante pode fazer
 
@@ -110,4 +111,6 @@ A página e a API ficam na mesma origem. A chave não vai para o `localStorage`.
 - `design/broquel.svg` — ícone
 - `web` — cofre no navegador
 - `servidor/public/app` — build publicado do cofre web
+- `extensao` — extensão de navegador (preencher e guardar senhas)
+- `servidor/public/downloads` — pacotes da extensão gerados pelo build
 - `docs` — especificações

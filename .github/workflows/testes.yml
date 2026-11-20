@@ -17,7 +17,10 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: packages/cripto/package-lock.json
+          cache-dependency-path: |
+            packages/cripto/package-lock.json
+            web/package-lock.json
+            extensao/package-lock.json
       - name: Instalar
         working-directory: packages/cripto
         run: npm ci
@@ -30,8 +33,11 @@ jobs:
       - name: Cofre web
         working-directory: web
         run: npm ci && npm test && npm run typecheck && npm run build
+      - name: Extensão do navegador
+        working-directory: extensao
+        run: npm ci && npm test && npm run typecheck && npm run build
       - name: Build publicado
-        run: git diff --exit-code -- servidor/public/app web/BUILD-SHA256.txt
+        run: git diff --exit-code -- servidor/public/app web/BUILD-SHA256.txt servidor/public/downloads
       - name: Hash do site publicado
         run: |
           {
@@ -45,6 +51,7 @@ jobs:
         run: |
           npm audit --omit=dev --prefix packages/cripto
           npm audit --omit=dev --prefix web
+          npm audit --omit=dev --prefix extensao
 
   php:
     name: PHP 8.2

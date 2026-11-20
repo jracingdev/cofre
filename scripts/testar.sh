@@ -7,6 +7,9 @@ npm run typecheck
 cd "$raiz/web"
 npm test
 npm run typecheck
+cd "$raiz/extensao"
+npm test
+npm run typecheck
 cd "$raiz/php"
 composer test
 cd "$raiz/servidor"
