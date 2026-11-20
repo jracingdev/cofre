@@ -22,3 +22,14 @@
 .pagina button { cursor: pointer; font: inherit; }
 .pagina [hidden] { display: none !important; }
 .painel h2 { margin-top: 0; }
+.campo select, .campo input[type="number"] {
+  width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--linha);
+  background: var(--fundo-2); color: var(--texto); font: inherit;
+}
+.rolar { overflow-x: auto; }
+.tabela { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.tabela th, .tabela td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--linha); vertical-align: top; }
+.tabela th { color: var(--mudo); font-weight: 600; }
+.tabela select, .tabela input { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--linha); background: var(--fundo-2); color: var(--texto); font: inherit; }
+.tabela button { padding: 6px 10px; border-radius: 8px; border: 1px solid var(--linha); background: var(--superficie-forte); color: var(--texto); }
+.pagina:has(.tabela) { max-width: 1100px; }

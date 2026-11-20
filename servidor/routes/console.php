@@ -1,5 +1,6 @@
 <?php
 
+use App\Servicos\Admin;
 use App\Servicos\Convites;
 use App\Servicos\Exclusao;
 use App\Servicos\Planos;
@@ -54,5 +55,10 @@ Artisan::command('broquel:bloquear {cofre} {--desbloquear}', function (Planos $p
 Artisan::command('broquel:excluir-contas', function (Exclusao $exclusao) {
     $this->info('Contas apagadas: '.$exclusao->apagarVencidas());
 })->purpose('Apaga contas cujo prazo de exclusão já passou');
+
+Artisan::command('broquel:admin', function (Admin $admin) {
+    $this->info($admin->novoLink());
+    $this->line('Abra no navegador em até '.Admin::LINK_MINUTOS.' minutos. O link vale uma vez; a sessão dura '.Admin::SESSAO_MINUTOS.' minutos.');
+})->purpose('Gera o link de entrada no painel /admin');
 
 Schedule::command('broquel:excluir-contas')->hourly();

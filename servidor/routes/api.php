@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CobrancaController;
 use App\Http\Controllers\Api\CofreController;
@@ -50,3 +51,16 @@ Route::middleware('conta')->group(function () {
 
 // Gateway de pagamento. Desligado enquanto BROQUEL_COBRANCA_SEGREDO estiver vazio.
 Route::post('/cobranca/webhook', [CobrancaController::class, 'webhook']);
+
+// Painel administrativo. A entrada é um link gerado por `php artisan broquel:admin` no servidor.
+Route::post('/admin/entrar', [AdminController::class, 'entrar'])->middleware('throttle:auth');
+Route::middleware('admin')->prefix('admin')->group(function () {
+    Route::post('/sair', [AdminController::class, 'sair']);
+    Route::get('/resumo', [AdminController::class, 'resumo']);
+    Route::get('/cofres', [AdminController::class, 'cofres']);
+    Route::get('/convites', [AdminController::class, 'convites']);
+    Route::post('/convites', [AdminController::class, 'criarConvite']);
+    Route::delete('/convites/{id}', [AdminController::class, 'encerrarConvite'])->whereNumber('id');
+    Route::put('/cofres/{id}/plano', [AdminController::class, 'plano']);
+    Route::put('/cofres/{id}/bloqueio', [AdminController::class, 'bloqueio']);
+});

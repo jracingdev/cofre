@@ -29,4 +29,5 @@ $semSessao = [
 ];
 Route::get('/conta', [PaginaContaController::class, 'conta'])->withoutMiddleware($semSessao);
 Route::get('/termos', [PaginaContaController::class, 'termos'])->withoutMiddleware($semSessao);
+Route::get('/admin', [PaginaContaController::class, 'admin'])->withoutMiddleware($semSessao);
 Route::get('/privacidade', [PaginaContaController::class, 'privacidade'])->withoutMiddleware($semSessao);

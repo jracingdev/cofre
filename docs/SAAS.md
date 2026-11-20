@@ -23,6 +23,10 @@ A camada SaaS fica ao lado do cofre. Nenhuma tabela antiga mudou, o formato do c
 - `403 somente_leitura` ao gravar com o plano vencido ou o cofre bloqueado. Ler e exportar continua liberado.
 - `403 limite_aparelhos` ao entrar de um aparelho novo acima do plano. Aparelho já usado nos últimos 30 dias sempre entra.
 
+## Painel /admin
+
+No servidor, dentro de `servidor/`, rode `php artisan broquel:admin`. Ele mostra um link `https://.../admin#t=...` que vale 10 minutos e uma vez só; a sessão do painel dura 30 minutos e fica só na aba. Não existe senha de admin na internet: entrar exige acesso ao VPS. No painel dá para ver cofres, contas, uso e planos, gerar e encerrar convites, mudar plano e validade e pôr um cofre em somente leitura.
+
 ## Administração (no servidor)
 
 ```sh

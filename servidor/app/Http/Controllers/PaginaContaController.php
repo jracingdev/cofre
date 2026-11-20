@@ -18,6 +18,11 @@ final class PaginaContaController extends Controller
         return $this->pagina('paginas.conta', 'noindex, nofollow', true);
     }
 
+    public function admin(): Response
+    {
+        return $this->pagina('paginas.admin', 'noindex, nofollow', true, 'painel/admin.js');
+    }
+
     public function termos(): Response
     {
         return $this->pagina('paginas.termos', 'index, follow', false);
@@ -28,13 +33,13 @@ final class PaginaContaController extends Controller
         return $this->pagina('paginas.privacidade', 'index, follow', false);
     }
 
-    private function pagina(string $view, string $robots, bool $comScript): Response
+    private function pagina(string $view, string $robots, bool $comScript, string $script = 'painel/conta.js'): Response
     {
         return response()
             ->view($view, [
                 'css' => self::ativo('site/estilo.css'),
                 'cssConta' => self::ativo('painel/conta.css'),
-                'js' => $comScript ? self::ativo('painel/conta.js') : null,
+                'js' => $comScript ? self::ativo($script) : null,
                 'versao' => (string) config('broquel.termos_versao'),
                 'responsavel' => (string) config('broquel.responsavel'),
                 'contato' => (string) config('broquel.contato'),
