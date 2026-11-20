@@ -14,6 +14,7 @@ use App\Servicos\Rede;
 use App\Suporte\Entrada;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 
 final class AuthController extends Controller
 {
@@ -104,13 +105,27 @@ final class AuthController extends Controller
         return $cofre;
     }
 
+    /** Falhas de segundo fator por cofre, somadas de todos os endereços, antes de esperar 15 minutos. */
+    private const FALHAS_SEGUNDO_FATOR = 10;
+
     private function concluir(Request $pedido, callable $checar): JsonResponse
     {
         /** @var CofreRegistro $cofre */
         $cofre = $pedido->attributes->get('cofre');
         /** @var SessaoAparelho $sessao */
         $sessao = $pedido->attributes->get('sessao');
-        $checar($cofre);
+        // O limite por IP não segura quem troca de endereço. Este conta por cofre.
+        $chave = 'segundo_fator:'.$cofre->id;
+        if (RateLimiter::tooManyAttempts($chave, self::FALHAS_SEGUNDO_FATOR)) {
+            throw new PedidoInvalido('muitas_tentativas', 'Muitos códigos errados. Espere alguns minutos.', 429);
+        }
+        try {
+            $checar($cofre);
+        } catch (PedidoInvalido $erro) {
+            RateLimiter::hit($chave, 900);
+            throw $erro;
+        }
+        RateLimiter::clear($chave);
 
         return response()->json($this->autenticacao->promover($sessao, $pedido));
     }

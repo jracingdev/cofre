@@ -9,6 +9,7 @@ use App\Mail\LinkConta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
@@ -46,6 +47,14 @@ final class Contas
         if ($recentes >= 5) {
             throw new PedidoInvalido('muitas_tentativas', 'Muitos links pedidos. Tente de novo mais tarde.', 429);
         }
+        // Fora do cadastro aberto, a página só manda link para quem já tem conta. Sem isso, qualquer um
+        // usaria o servidor para mandar e-mail a endereços de terceiros. A resposta é a mesma nos dois casos.
+        if ($finalidade === 'entrar' && config('broquel.cadastro') !== 'aberto'
+            && ! DB::table('contas')->where('email', $email)->exists()) {
+            $this->auditor->registrar(null, 'conta.link', 'sem_conta', $pedido);
+
+            return;
+        }
         $token = $this->tokens->novo();
         DB::table('conta_links')->insert([
             'email' => $email,
@@ -57,7 +66,16 @@ final class Contas
             'updated_at' => now(),
         ]);
         $url = rtrim((string) config('app.url'), '/').'/conta#t='.$token;
-        Mail::to($email)->send(new LinkConta($url, $finalidade, (int) config('broquel.conta_link_minutos')));
+        $mensagem = new LinkConta($url, $finalidade, (int) config('broquel.conta_link_minutos'));
+        // Envia depois de responder: o tempo da resposta não diz se a conta existe, e um SMTP lento
+        // ou fora do ar não trava a página. A falha fica no log, sem o link.
+        \Illuminate\Support\defer(function () use ($email, $mensagem): void {
+            try {
+                Mail::to($email)->send($mensagem);
+            } catch (\Throwable $erro) {
+                Log::error('Falha ao enviar o e-mail da conta.', ['erro' => $erro::class, 'mensagem' => mb_substr($erro->getMessage(), 0, 300)]);
+            }
+        });
         $this->auditor->registrar($cofreId, 'conta.link', $finalidade, $pedido);
     }
 

@@ -252,7 +252,7 @@ O segredo do TOTP fica no banco, cifrado com a `APP_KEY`. Quem tomar o servidor 
 ## O que ainda não está feito
 
 - Não há DNS, certificado nem VPS criados daqui. Isso é na máquina de produção.
-- Não há fila, e-mail nem painel de administração. Não precisa.
+- Não há fila. O e-mail serve só ao link da conta e sai por SMTP comum ([EMAIL.md](EMAIL.md)). O painel `/admin` só abre com link gerado no servidor ([SAAS.md](SAAS.md)).
 - A cerimônia FIDO2 completa depende de um navegador e de uma chave de verdade. O teste automático confere que uma cerimônia forjada é recusada e que o servidor emite o desafio. O site chama a API de cadastro e de login dessa chave.
 
 ## Camada SaaS (contas, planos e convites)
@@ -271,6 +271,12 @@ A exclusão de contas roda pelo agendador do Laravel. Crie um cron só do usuár
 
 ```cron
 * * * * * cd /var/www/broquel/servidor && php artisan schedule:run >> /dev/null 2>&1
+```
+
+No aaPanel, o Cron (tipo Shell Script, a cada 1 minuto) roda como root. Rode o comando como o usuário do site, para os arquivos de cache e log continuarem dele:
+
+```sh
+su -s /bin/sh www -c 'cd /www/wwwroot/broquel.jracing.dev.br/servidor && /www/server/php/82/bin/php artisan schedule:run' >> /dev/null 2>&1
 ```
 
 Detalhes em [SAAS.md](SAAS.md).

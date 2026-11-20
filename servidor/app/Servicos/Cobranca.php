@@ -58,7 +58,11 @@ final class Cobranca
                 if (! is_string($planoId) || ! is_string($ate)) {
                     throw new PedidoInvalido('formato_invalido', 'Pagamento sem plano ou validade.');
                 }
-                $validoAte = Carbon::parse($ate);
+                try {
+                    $validoAte = Carbon::parse($ate);
+                } catch (\Throwable) {
+                    throw new PedidoInvalido('formato_invalido', 'Data de validade inválida.');
+                }
                 foreach ($cofres as $cofreId) {
                     $this->planos->definir((string) $cofreId, $planoId, $validoAte);
                 }

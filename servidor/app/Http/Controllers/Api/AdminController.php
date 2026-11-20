@@ -82,7 +82,11 @@ final class AdminController extends Controller
     {
         $id = $this->cofre($id);
         $ate = $pedido->input('valido_ate');
-        $validoAte = is_string($ate) && $ate !== '' ? Carbon::parse($ate)->endOfDay() : null;
+        try {
+            $validoAte = is_string($ate) && $ate !== '' ? Carbon::parse($ate)->endOfDay() : null;
+        } catch (\Throwable) {
+            throw new PedidoInvalido('formato_invalido', 'Data inválida.');
+        }
         $this->planos->definir($id, (string) $pedido->input('plano_id'), $validoAte);
         $this->auditor->registrar($id, 'admin.plano', 'ok', $pedido);
 

@@ -37,7 +37,11 @@ php artisan broquel:plano <cofre_id> completo --ate=2027-12-31
 php artisan broquel:bloquear <cofre_id>            # somente leitura
 php artisan broquel:bloquear <cofre_id> --desbloquear
 php artisan broquel:excluir-contas
+php artisan broquel:limpar                         # apaga desafios, links e sessões vencidos
+php artisan broquel:testar-email voce@exemplo.com  # confere o SMTP
 ```
+
+`broquel:excluir-contas` (de hora em hora) e `broquel:limpar` (uma vez por dia) rodam sozinhos pelo agendador do Laravel. Para isso o servidor precisa de um Cron que chame `php artisan schedule:run` a cada minuto (veja [IMPLANTACAO.md](IMPLANTACAO.md)).
 
 Os planos são linhas da tabela `planos` (`ilimitado`, `gratis` e `completo` já vêm criados). Para mudar limites, edite a linha.
 
@@ -65,10 +69,9 @@ BROQUEL_CONTATO=privacidade@jracing.dev.br
 BROQUEL_COBRANCA_SEGREDO=
 ```
 
-O link mágico usa `APP_URL` e o e-mail configurado em `MAIL_*`. Sem SMTP configurado (`MAIL_MAILER=log`), o link vai para o log.
+O link mágico usa `APP_URL` e o e-mail configurado em `MAIL_*`. Sem SMTP configurado (`MAIL_MAILER=log`), o link vai para o log. Como ligar o SMTP: [EMAIL.md](EMAIL.md).
 
 ## Ainda falta
 
-- Nos apps (Android, web e extensão): campo de código de convite ao criar cofre, botão "Ligar à conta" e a tela de uso do plano.
 - Escolher o gateway e escrever o adaptador do webhook.
 - Revisão jurídica dos termos e da política, e CNPJ do responsável.

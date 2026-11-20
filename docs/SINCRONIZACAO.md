@@ -98,7 +98,9 @@ O cadastro do TOTP e da chave FIDO2 pede uma sessão já aberta. Enquanto nada e
 
 `PUT /v1/cofre/rede` liga a lista de IPs daquele cofre. Se a variável `BROQUEL_IPS` estiver preenchida, ela vale para o servidor inteiro.
 
-Os blobs viajam em base64 comum. O cabeçalho novo, depois de trocar a senha no aparelho, entra por `PUT /v1/cofre`. A chave pública tem de continuar a mesma.
+Os blobs viajam em base64 comum. O cabeçalho novo, depois de trocar a senha ou gerar outro kit no aparelho, entra por `PUT /v1/cofre`. A chave pública tem de continuar a mesma. Os apps só mandam o cabeçalho quando ele mudou naquele aparelho (marca `cabecalhoPendente` no estado local). Um aparelho com a cópia antiga não reenvia o cabeçalho velho, então não devolve ao servidor o kit que foi trocado.
+
+Gerar outro kit não troca a chave do cofre nem a chave de login. Quem guardou uma cópia antiga do cabeçalho e tem o kit antigo continua abrindo aquela cópia. Para cortar esse caso de vez é preciso um cofre novo (chaves novas) com os itens copiados. Ligar o TOTP fecha a porta do servidor para quem só tem o kit antigo, porque o login pede o código.
 
 ## Ida e volta
 

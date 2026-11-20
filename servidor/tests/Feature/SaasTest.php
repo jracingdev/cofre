@@ -130,6 +130,37 @@ final class SaasTest extends TestCase
         $this->assertSame(1, DB::table('contas')->count());
     }
 
+    public function test_link_da_pagina_no_cadastro_por_convite_so_vai_para_conta_existente(): void
+    {
+        Mail::fake();
+        config(['broquel.cadastro' => 'convite']);
+        $this->postJson('/v1/conta/link', ['email' => 'estranho@exemplo.com'])->assertStatus(202);
+        Mail::assertNothingSent();
+        $this->assertSame(0, DB::table('conta_links')->count());
+
+        config(['broquel.cadastro' => 'aberto']);
+        $this->postJson('/v1/conta/link', ['email' => 'dono@exemplo.com'])->assertStatus(202);
+        $this->postJson('/v1/conta/entrar', ['token' => $this->capturarLink(), 'aceito_termos' => true])->assertOk();
+
+        config(['broquel.cadastro' => 'convite']);
+        $this->postJson('/v1/conta/link', ['email' => 'dono@exemplo.com'])->assertStatus(202);
+        Mail::assertSent(LinkConta::class, 2);
+    }
+
+    public function test_token_malformado_e_datas_invalidas_nao_viram_erro_500(): void
+    {
+        $this->withToken('***nao-e-base64***')->getJson('/v1/itens')->assertStatus(401);
+        $this->withToken('***nao-e-base64***')->getJson('/v1/conta')->assertStatus(401);
+        $this->withToken('***nao-e-base64***')->getJson('/v1/admin/resumo')->assertStatus(401);
+        config(['broquel.cobranca_segredo' => 'segredo-de-teste']);
+        DB::table('contas')->insert(['id' => 'c1', 'email' => 'c1@exemplo.com', 'created_at' => now(), 'updated_at' => now()]);
+        $corpo = json_encode(['evento_id' => 'e1', 'tipo' => 'pagamento_confirmado', 'conta_id' => 'c1', 'plano_id' => 'completo', 'valido_ate' => 'lixo']);
+        $this->call('POST', '/v1/cobranca/webhook', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_BROQUEL_ASSINATURA' => hash_hmac('sha256', $corpo, 'segredo-de-teste'),
+        ], $corpo)->assertStatus(422)->assertJsonPath('erro', 'formato_invalido');
+    }
+
     public function test_webhook_de_cobranca_assinado_e_idempotente(): void
     {
         Mail::fake();

@@ -182,6 +182,9 @@ final class SincronizacaoTest extends TestCase
             ->assertOk()
             ->json('codigos_recuperacao');
         $this->assertCount(8, $recuperacao);
+        // Com o TOTP ligado, gerar outro segredo exigiria desligar com código antes.
+        $this->comToken($token)->postJson('/v1/totp/iniciar')->assertStatus(409)->assertJsonPath('erro', 'totp_ativo');
+        $this->assertNotNull(DB::table('totps')->where('cofre_id', $id)->value('confirmado_em'));
         $this->assertStringNotContainsString($inicio['segredo'], DB::table('auditorias')->pluck('acao')->implode(' '));
         $this->assertStringNotContainsString($inicio['segredo'], (string) DB::table('totps')->value('segredo_cifrado'));
 
@@ -215,6 +218,16 @@ final class SincronizacaoTest extends TestCase
         $deNovo = $this->preToken($id, $cripto);
         $this->withToken($deNovo['pre_token'])->postJson('/v1/auth/recuperacao', ['codigo' => $recuperacao[0]])
             ->assertStatus(401);
+
+        // Muitos códigos errados no mesmo cofre, de qualquer endereço, travam por um tempo.
+        config(['broquel.limite_auth' => 1000]);
+        for ($i = 0; $i < 10; $i++) {
+            $errado = $this->preToken($id, $cripto);
+            $this->withToken($errado['pre_token'])->postJson('/v1/auth/totp', ['codigo' => '000000'])->assertStatus(401);
+        }
+        $travado = $this->preToken($id, $cripto);
+        $this->withToken($travado['pre_token'])->postJson('/v1/auth/totp', ['codigo' => '000000'])
+            ->assertStatus(429)->assertJsonPath('erro', 'muitas_tentativas');
 
         $resposta = $this->getJson('/v1/cofre/'.$id)->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
         $this->assertStringContainsString('no-store', (string) $resposta->headers->get('Cache-Control'));

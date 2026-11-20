@@ -36,6 +36,10 @@ final class Fatores
     /** @return array{segredo: string, uri: string} */
     public function iniciarTotp(CofreRegistro $cofre): array
     {
+        // Gerar outro segredo por cima de um TOTP ativo desligaria o segundo fator sem pedir código.
+        if (DB::table('totps')->where('cofre_id', $cofre->id)->whereNotNull('confirmado_em')->exists()) {
+            throw new PedidoInvalido('totp_ativo', 'O TOTP já está ligado. Desligue com um código antes de gerar outro.', 409);
+        }
         $totp = TOTP::create();
         $totp->setLabel('Broquel');
         $totp->setIssuer('Broquel');

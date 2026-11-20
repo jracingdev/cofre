@@ -15,7 +15,11 @@ final class Tokens
 
     public function hash(string $token): string
     {
-        $cru = sodium_base642bin($token, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
+        try {
+            $cru = sodium_base642bin($token, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
+        } catch (\SodiumException) {
+            throw new PedidoInvalido('autenticacao_falhou', 'Sessão inválida.', 401);
+        }
         if (strlen($cru) !== 32) {
             throw new PedidoInvalido('autenticacao_falhou', 'Sessão inválida.', 401);
         }

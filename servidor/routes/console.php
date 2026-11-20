@@ -7,6 +7,7 @@ use App\Servicos\Planos;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schedule;
 
 // Administração do SaaS. Nada aqui lê conteúdo de cofre: só contagens e planos.
@@ -61,4 +62,40 @@ Artisan::command('broquel:admin', function (Admin $admin) {
     $this->line('Abra no navegador em até '.Admin::LINK_MINUTOS.' minutos. O link vale uma vez; a sessão dura '.Admin::SESSAO_MINUTOS.' minutos.');
 })->purpose('Gera o link de entrada no painel /admin');
 
+Artisan::command('broquel:limpar', function () {
+    // Só linhas vencidas há mais de um dia. Nada de cofre, item ou conta.
+    $limite = now()->subDay();
+    $apagadas = 0;
+    foreach (['desafios', 'desafios_webauthn', 'conta_links', 'conta_sessoes', 'admin_tokens'] as $tabela) {
+        $apagadas += DB::table($tabela)->where('expira_em', '<', $limite)->delete();
+    }
+    $this->info('Linhas vencidas apagadas: '.$apagadas);
+})->purpose('Apaga desafios, links e sessões de conta/admin já vencidos');
+
+Artisan::command('broquel:testar-email {email}', function () {
+    $email = (string) $this->argument('email');
+    if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+        $this->error('E-mail inválido.');
+
+        return 1;
+    }
+    $this->line('Mailer: '.config('mail.default').'  Host: '.config('mail.mailers.smtp.host').':'.config('mail.mailers.smtp.port')
+        .'  De: '.config('mail.from.address'));
+    try {
+        Mail::raw("Teste de envio do Broquel.\n\nSe chegou, o SMTP está certo.", function ($mensagem) use ($email): void {
+            $mensagem->to($email)->subject('Teste de e-mail do Broquel');
+        });
+    } catch (\Throwable $erro) {
+        $this->error('Falhou: '.$erro->getMessage());
+
+        return 1;
+    }
+    $this->info(config('mail.default') === 'log'
+        ? 'MAIL_MAILER=log: a mensagem foi para storage/logs, não para a caixa de entrada.'
+        : 'Enviado. Confira a caixa de entrada e o spam.');
+
+    return 0;
+})->purpose('Manda um e-mail de teste com a configuração do .env');
+
 Schedule::command('broquel:excluir-contas')->hourly();
+Schedule::command('broquel:limpar')->daily();
