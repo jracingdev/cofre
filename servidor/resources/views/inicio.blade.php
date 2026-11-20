@@ -276,8 +276,8 @@
           </details>
           <details class="revelar">
             <summary>Instalar a extensão</summary>
-            <p><strong>Chrome, Edge e Brave:</strong> descompacte o zip, abra <code>chrome://extensions</code>, ligue o modo do desenvolvedor e use “Carregar sem compactação” apontando para a pasta.</p>
-            <p><strong>Firefox:</strong> abra <code>about:debugging#/runtime/this-firefox</code> e use “Carregar extensão temporária” com o zip.</p>
+            <p><strong>Chrome, Edge e Brave:</strong> descompacte o zip, abra <code>chrome://extensions</code>, ligue o Modo do desenvolvedor e use “Carregar sem compactação” apontando para a pasta.</p>
+            <p><strong>Firefox:</strong> abra <code>about:debugging#/runtime/this-firefox</code> e use “Carregar extensão temporária” com o zip. Por enquanto ela some ao fechar o Firefox, até sair a versão assinada pela Mozilla.</p>
           </details>
         </div>
       </div>
