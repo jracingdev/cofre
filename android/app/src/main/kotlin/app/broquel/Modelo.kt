@@ -21,6 +21,7 @@ import app.broquel.cripto.estadoInicial
 import app.broquel.cripto.bytesParaHex
 import app.broquel.cripto.gerarSenha
 import app.broquel.cripto.idNome
+import app.broquel.cripto.PREFIXO_KIT
 import app.broquel.autofill.Origem
 import app.broquel.autofill.Preenchimento
 import kotlinx.coroutines.Dispatchers
@@ -455,6 +456,17 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
      * perder letras; a limpeza acontece em [identificadorLimpo].
      */
     fun definirIdentificadorRemoto(valor: String) {
+        if (valor.trim().startsWith(PREFIXO_KIT)) {
+            // Colaram o kit de recuperação, que é secreto. Não fica na tela nem na memória da tela.
+            publicar {
+                copy(
+                    identificadorRemoto = "",
+                    erro = "Isso é o kit de recuperação (começa com cofre1.), não o identificador. O kit é secreto: " +
+                        "não cole nem compartilhe. O identificador tem 32 caracteres de 0 a 9 e a até f.",
+                )
+            }
+            return
+        }
         publicar { copy(identificadorRemoto = valor.take(80), erro = "") }
     }
 
