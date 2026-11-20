@@ -221,6 +221,7 @@ final class SincronizacaoTest extends TestCase
 
         // Muitos códigos errados no mesmo cofre, de qualquer endereço, travam por um tempo.
         config(['broquel.limite_auth' => 1000]);
+        \Illuminate\Support\Facades\RateLimiter::clear('segundo_fator:'.$id);
         for ($i = 0; $i < 10; $i++) {
             $errado = $this->preToken($id, $cripto);
             $this->withToken($errado['pre_token'])->postJson('/v1/auth/totp', ['codigo' => '000000'])->assertStatus(401);
