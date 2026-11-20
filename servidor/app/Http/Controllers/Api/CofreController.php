@@ -29,7 +29,8 @@ final class CofreController extends Controller
         if (! is_string($b64)) {
             throw new PedidoInvalido('formato_invalido', 'Cabeçalho ausente.');
         }
-        $cofre = $this->cofres->registrar($b64, $pedido);
+        $convite = $pedido->input('convite', $pedido->header('X-Broquel-Convite'));
+        $cofre = $this->cofres->registrar($b64, $pedido, is_string($convite) ? mb_substr($convite, 0, 40) : null);
 
         return response()->json(['cofre_id' => $cofre->id], 201);
     }

@@ -19,6 +19,7 @@ final class Autenticacao
         private readonly Auditor $auditor,
         private readonly Tokens $tokens,
         private readonly Fatores $fatores,
+        private readonly Planos $planos,
     ) {
     }
 
@@ -57,7 +58,7 @@ final class Autenticacao
             throw new PedidoInvalido('autenticacao_falhou', 'Não foi possível autenticar.', 401);
         }
 
-        return DB::transaction(function () use ($desafioId, $assinatura, $aparelhoId, $nome, $pedido) {
+        $resultado = DB::transaction(function () use ($desafioId, $assinatura, $aparelhoId, $nome, $pedido) {
             $linha = DB::table('desafios')->where('id', $desafioId)->lockForUpdate()->first();
             $expirado = $linha !== null && now()->greaterThan(Carbon::parse($linha->expira_em));
             if ($linha === null || $linha->usado_em !== null || $expirado) {
@@ -82,6 +83,14 @@ final class Autenticacao
                 $this->auditor->registrar($cofre->id, 'auth.falha', 'assinatura', $pedido, $aparelhoId);
                 throw new PedidoInvalido('autenticacao_falhou', 'Não foi possível autenticar.', 401);
             }
+            try {
+                $this->planos->exigirAparelho($cofre->id, $aparelhoId);
+            } catch (PedidoInvalido $erro) {
+                // O desafio já ficou marcado como usado; a recusa sai depois do commit.
+                $this->auditor->registrar($cofre->id, 'auth.recusado', 'aparelhos', $pedido, $aparelhoId);
+
+                return ['__recusa' => $erro];
+            }
             $metodos = $this->fatores->metodos($cofre->id);
             $tipo = $metodos === [] ? 'sessao' : 'pre';
             $emitida = $this->emitir($cofre->id, $aparelhoId, $nome, $tipo, $pedido);
@@ -104,6 +113,11 @@ final class Autenticacao
                 'segundo_fator' => false,
             ];
         });
+        if (isset($resultado['__recusa'])) {
+            throw $resultado['__recusa'];
+        }
+
+        return $resultado;
     }
 
     /** @return array{id: string, token: string, expira_em: string} */

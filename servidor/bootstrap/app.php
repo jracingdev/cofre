@@ -2,6 +2,7 @@
 
 use App\Excecoes\ConflitoItem;
 use App\Excecoes\PedidoInvalido;
+use App\Http\Middleware\AutenticarConta;
 use App\Http\Middleware\AutenticarToken;
 use App\Http\Middleware\CabecalhosSeguranca;
 use App\Http\Middleware\RestricaoIpGlobal;
@@ -26,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->alias([
             'token' => AutenticarToken::class,
+            'conta' => AutenticarConta::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

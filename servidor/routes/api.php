@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CobrancaController;
 use App\Http\Controllers\Api\CofreController;
+use App\Http\Controllers\Api\ContaController;
 use App\Http\Controllers\Api\ItemController;
 use App\Http\Controllers\Api\SegurancaController;
 use Illuminate\Support\Facades\Route;
@@ -22,6 +24,8 @@ Route::middleware('token:pre')->group(function () {
 Route::middleware('token:sessao')->group(function () {
     Route::put('/cofre', [CofreController::class, 'atualizar']);
     Route::put('/cofre/rede', [CofreController::class, 'rede']);
+    Route::get('/plano', [ContaController::class, 'uso']);
+    Route::post('/cofre/conta', [ContaController::class, 'vincular'])->middleware('throttle:auth');
     Route::get('/itens', [ItemController::class, 'index']);
     Route::put('/itens/{id}', [ItemController::class, 'gravar']);
     Route::get('/sessoes', [AuthController::class, 'sessoes']);
@@ -33,3 +37,16 @@ Route::middleware('token:sessao')->group(function () {
     Route::post('/webauthn/registro/opcoes', [SegurancaController::class, 'opcoesRegistro']);
     Route::post('/webauthn/registro', [SegurancaController::class, 'confirmarRegistro'])->middleware('throttle:auth');
 });
+
+// Conta do SaaS: plano, cobrança e exclusão. Não abre o cofre.
+Route::post('/conta/link', [ContaController::class, 'link'])->middleware('throttle:auth');
+Route::post('/conta/entrar', [ContaController::class, 'entrar'])->middleware('throttle:auth');
+Route::middleware('conta')->group(function () {
+    Route::get('/conta', [ContaController::class, 'mostrar']);
+    Route::delete('/conta', [ContaController::class, 'excluir'])->middleware('throttle:auth');
+    Route::post('/conta/manter', [ContaController::class, 'manter']);
+    Route::post('/conta/sair', [ContaController::class, 'sair']);
+});
+
+// Gateway de pagamento. Desligado enquanto BROQUEL_COBRANCA_SEGREDO estiver vazio.
+Route::post('/cobranca/webhook', [CobrancaController::class, 'webhook']);

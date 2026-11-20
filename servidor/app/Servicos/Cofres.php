@@ -9,14 +9,18 @@ use App\Models\CofreRegistro;
 use Broquel\Cripto\Cofre;
 use Broquel\Cripto\ErroCofre;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 final class Cofres
 {
-    public function __construct(private readonly Auditor $auditor)
-    {
+    public function __construct(
+        private readonly Auditor $auditor,
+        private readonly Convites $convites,
+        private readonly Planos $planos,
+    ) {
     }
 
-    public function registrar(string $cabecalhoB64, Request $pedido): CofreRegistro
+    public function registrar(string $cabecalhoB64, Request $pedido, ?string $convite = null): CofreRegistro
     {
         $bytes = $this->cabecalho($cabecalhoB64);
         $lido = $this->ler($bytes);
@@ -24,13 +28,24 @@ final class Cofres
         if (CofreRegistro::query()->whereKey($id)->exists()) {
             throw new PedidoInvalido('cofre_existente', 'Este cofre já está registrado.', 409);
         }
-        $cofre = CofreRegistro::query()->create([
-            'id' => $id,
-            'cabecalho_b64' => base64_encode($bytes),
-            'chave_publica' => bin2hex($lido['pk']),
-            'restringir_ip' => false,
-            'ips_permitidos' => [],
-        ]);
+        try {
+            $cofre = DB::transaction(function () use ($id, $bytes, $lido, $convite) {
+                $planoId = $this->convites->autorizarCriacao($convite);
+                $cofre = CofreRegistro::query()->create([
+                    'id' => $id,
+                    'cabecalho_b64' => base64_encode($bytes),
+                    'chave_publica' => bin2hex($lido['pk']),
+                    'restringir_ip' => false,
+                    'ips_permitidos' => [],
+                ]);
+                $this->planos->definir($id, $planoId, null);
+
+                return $cofre;
+            });
+        } catch (PedidoInvalido $erro) {
+            $this->auditor->registrar(null, 'cofre.recusado', substr($erro->codigo, 0, 20), $pedido);
+            throw $erro;
+        }
         $this->auditor->registrar($id, 'cofre.criado', 'ok', $pedido);
 
         return $cofre;

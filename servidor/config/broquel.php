@@ -22,4 +22,27 @@ return [
     'ips' => $ips,
     'itens_por_pagina' => 100,
     'itens_por_pagina_max' => 500,
+
+    // SaaS. Veja docs/SAAS.md.
+    // aberto: qualquer um cria cofre; convite: só com código de convite; fechado: ninguém cria.
+    'cadastro' => in_array(env('BROQUEL_CADASTRO', 'convite'), ['aberto', 'convite', 'fechado'], true)
+        ? (string) env('BROQUEL_CADASTRO', 'convite')
+        : 'fechado',
+    'max_cofres' => max(0, (int) env('BROQUEL_MAX_COFRES', 0)),
+    // Plano de quem já existia antes da camada SaaS e não tem linha em cofre_planos.
+    'plano_sem_registro' => (string) env('BROQUEL_PLANO_SEM_REGISTRO', 'ilimitado'),
+    // Plano de quem se cadastra com o cadastro aberto.
+    'plano_cadastro_aberto' => (string) env('BROQUEL_PLANO_ABERTO', 'gratis'),
+    // Dias depois do vencimento em que o cofre ainda grava, antes de virar somente leitura.
+    'carencia_dias' => max(0, (int) env('BROQUEL_CARENCIA_DIAS', 7)),
+    // Janela para contar aparelhos de um cofre.
+    'aparelhos_janela_dias' => 30,
+    'conta_link_minutos' => 30,
+    'conta_sessao_minutos' => 30,
+    'conta_exclusao_dias' => 7,
+    'termos_versao' => (string) env('BROQUEL_TERMOS_VERSAO', '2026-11-20'),
+    // Quem responde pelo serviço nos termos e na política de privacidade (LGPD).
+    'responsavel' => (string) env('BROQUEL_RESPONSAVEL', 'jracing.dev.br'),
+    'contato' => (string) env('BROQUEL_CONTATO', 'privacidade@jracing.dev.br'),
+    'cobranca_segredo' => (string) env('BROQUEL_COBRANCA_SEGREDO', ''),
 ];

@@ -254,3 +254,23 @@ O segredo do TOTP fica no banco, cifrado com a `APP_KEY`. Quem tomar o servidor 
 - Não há DNS, certificado nem VPS criados daqui. Isso é na máquina de produção.
 - Não há fila, e-mail nem painel de administração. Não precisa.
 - A cerimônia FIDO2 completa depende de um navegador e de uma chave de verdade. O teste automático confere que uma cerimônia forjada é recusada e que o servidor emite o desafio. O site chama a API de cadastro e de login dessa chave.
+
+## Camada SaaS (contas, planos e convites)
+
+Depois de atualizar o código para a versão com a camada SaaS, rode no servidor, dentro de `servidor/`:
+
+```sh
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+```
+
+A partir daí cofre novo só é criado com convite (`BROQUEL_CADASTRO=convite`). Os cofres que já existem continuam sem limite. Para gerar um convite: `php artisan broquel:convite`.
+
+A exclusão de contas roda pelo agendador do Laravel. Crie um cron só do usuário do Broquel (não mexe em nada de outro site):
+
+```cron
+* * * * * cd /var/www/broquel/servidor && php artisan schedule:run >> /dev/null 2>&1
+```
+
+Detalhes em [SAAS.md](SAAS.md).

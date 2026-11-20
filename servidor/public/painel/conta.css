@@ -1,0 +1,24 @@
+/* Páginas da conta, dos termos e da privacidade. Usa as variáveis de /site/estilo.css. */
+.pagina { max-width: 760px; padding: 48px 20px 80px; }
+.pagina h1 { font-size: clamp(1.8rem, 4vw, 2.4rem); }
+.pagina h2 { font-size: 1.3rem; margin-top: 2em; }
+.painel { background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); padding: 24px; margin: 20px 0; }
+.painel[hidden] { display: none; }
+.campo { display: block; margin: 0 0 14px; }
+.campo span { display: block; color: var(--mudo); font-size: .9rem; margin-bottom: 6px; }
+.campo input[type="email"], .campo input[type="text"] {
+  width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--linha);
+  background: var(--fundo-2); color: var(--texto); font: inherit;
+}
+.marcar { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 14px; color: var(--mudo); }
+.aviso { padding: 12px 14px; border-radius: 12px; background: rgba(57, 208, 255, .08); border: 1px solid rgba(57, 208, 255, .25); }
+.erro { padding: 12px 14px; border-radius: 12px; background: rgba(255, 80, 80, .1); border: 1px solid rgba(255, 80, 80, .35); }
+.cofres { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.cofres li { border: 1px solid var(--linha); border-radius: 14px; padding: 14px 16px; }
+.barra { height: 6px; border-radius: 6px; background: var(--superficie-forte); overflow: hidden; margin: 6px 0 2px; }
+.barra i { display: block; height: 100%; background: var(--azul-claro); }
+.perigo { border-color: rgba(255, 80, 80, .35); }
+.botao-perigo { background: #b3261e; color: #fff; }
+.pagina button { cursor: pointer; font: inherit; }
+.pagina [hidden] { display: none !important; }
+.painel h2 { margin-top: 0; }

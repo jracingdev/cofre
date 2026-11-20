@@ -15,8 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 final class Sincronizacao
 {
-    public function __construct(private readonly Auditor $auditor)
-    {
+    public function __construct(
+        private readonly Auditor $auditor,
+        private readonly Planos $planos,
+    ) {
     }
 
     /** @return array{itens: list<array<string, mixed>>, proximo_cursor: int|null, tem_mais: bool} */
@@ -67,6 +69,13 @@ final class Sincronizacao
                     ->where('item_id', $itemId)
                     ->lockForUpdate()
                     ->first();
+                $this->planos->exigirGravacao(
+                    $cofre->id,
+                    $atual === null || (bool) $atual->apagado,
+                    (bool) $meta['apagado'],
+                    strlen(base64_encode($blob)),
+                    $atual === null ? 0 : strlen((string) $atual->blob_b64),
+                );
                 if ($atual === null) {
                     if ($base !== 0 || (int) $meta['revisao'] !== 1) {
                         throw new ConflitoItem(null);
@@ -104,6 +113,9 @@ final class Sincronizacao
         } catch (ConflitoItem $conflito) {
             $this->auditor->registrar($cofre->id, 'item.conflito', 'recusado', $pedido);
             throw $conflito;
+        } catch (PedidoInvalido $erro) {
+            $this->auditor->registrar($cofre->id, 'item.recusado', substr($erro->codigo, 0, 20), $pedido);
+            throw $erro;
         }
         $this->auditor->registrar($cofre->id, 'item.gravado', 'ok', $pedido);
 
