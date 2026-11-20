@@ -392,7 +392,6 @@ private fun Trazer(ui: Ui, modelo: Modelo) {
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Campo(ui.url, modelo::definirUrl, "Servidor (https)", teclado = KeyboardType.Uri)
     BotaoCheio(
         "Trazer do servidor",
         modelo::trazerCofre,
