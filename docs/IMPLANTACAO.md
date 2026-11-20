@@ -161,6 +161,18 @@ location /app/ {
 
 `wasm-unsafe-eval` existe porque o libsodium sobe o WebAssembly. Não há `unsafe-inline` e não há script de outro site. O `index.html` também traz essa política e a integridade (SRI) dos arquivos. A chave do cofre fica só na memória e some ao travar ou ao fechar a aba. O navegador pode guardar o cabeçalho e os itens cifrados no IndexedDB. Isso não é a senha nem a chave.
 
+### Conferir o site publicado
+
+SRI e CSP não ajudam se o próprio servidor for trocado, porque ele também entrega o `index.html`. Por isso o hash SHA-256 de cada arquivo do build fica em `web/BUILD-SHA256.txt`, no repositório, e aparece no resumo de cada execução do CI. O CI gera o build de novo e falha se o resultado não bater com o que está commitado.
+
+Para conferir o que o servidor entrega, num computador que não seja o servidor e com o repositório baixado do GitHub:
+
+```sh
+scripts/conferir-web.sh https://broquel.jracing.dev.br
+```
+
+Se algum arquivo aparecer como `DIFERENTE`, não digite a senha mestra no site. O `index.html` traz o SRI dos scripts, então ele bater já amarra o resto. Isso não pega um servidor que entregue uma versão diferente só para alguns visitantes; para esse caso, use o app Android.
+
 `BROQUEL_RP_ID` e `BROQUEL_ORIGEM` têm de ser o domínio e a origem em que o site abre, senão a chave FIDO2 recusa. Exemplo: `cofre.seudominio` e `https://cofre.seudominio`.
 
 No celular, o identificador de 32 caracteres hexadecimais aparece nos ajustes e na tela do kit. No site, cole esse identificador em "Abrir cofre existente" e use a mesma senha mestra. O que for criado num lado aparece no outro depois de sincronizar.
@@ -218,6 +230,8 @@ O caminho é o mesmo, com os cliques do painel:
 `https://cofre.seudominio/` responde `{"servico":"broquel","versao":1}`. `https://cofre.seudominio/app/` abre o Broquel. `APP_DEBUG` continua `false`. Um `GET` em `/v1/cofre/` com um id inventado não devolve cabeçalho. Os logs em `storage/logs` não devem ser `debug`.
 
 O primeiro cofre pode nascer no aplicativo ou no site. No primeiro acesso não há segundo fator. Com a sessão aberta, o site cadastra o TOTP ou a chave FIDO2. A partir daí todo login, no site e no aplicativo, pede o segundo fator. Os oito códigos de recuperação aparecem uma vez. Guarde-os fora do servidor.
+
+O segredo do TOTP fica no banco, cifrado com a `APP_KEY`. Quem tomar o servidor consegue gerar códigos, mas isso não abre nada a mais: ele já tem os blobs, e eles só abrem com a chave do cofre, que nunca sai dos aparelhos. O segundo fator protege o acesso aos blobs de quem não controla o servidor. O app Android usa o TOTP; a chave FIDO2 fica para o site.
 
 ## O que ainda não está feito
 

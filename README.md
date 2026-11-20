@@ -64,6 +64,8 @@ Há um kit de recuperação aleatório, anotado fora do aparelho. Ele embrulha o
 
 Cada item usa XChaCha20-Poly1305, com nonce aleatório de 24 bytes. Os dados associados amarram o item ao cofre, à revisão, às datas e à marca de exclusão. Mudou qualquer um desses campos, a abertura falha.
 
+No Android, a biometria é opcional e só pode ser ligada numa sessão aberta com a senha mestra. A chave do cofre e a chave de login (96 bytes) ficam em `bio.dat`, cifradas por uma chave do Android Keystore (`broquel.bio`, StrongBox quando houver) que exige biometria forte a cada uso e some quando um dedo ou rosto novo é cadastrado. A partir do Android 11, o PIN ou padrão do próprio celular serve de reserva. O Broquel não guarda PIN nenhum. A senha mestra volta a ser obrigatória a cada 7 dias, depois de reiniciar o celular e depois de 5 falhas de desbloqueio. O app trava sozinho em segundo plano e também por inatividade com o app aberto, no tempo escolhido em Ajustes. Desligar a biometria ou sair do aparelho apaga `bio.dat` e a chave do Keystore.
+
 O backup é o cabeçalho mais os itens, no mesmo formato. Sem a senha ou o kit, o arquivo não revela o conteúdo.
 
 As primitivas são as do libsodium. Não há cifra, hash ou derivação escrita à mão. A biblioteca web é `libsodium-wrappers-sumo` porque o build sumo traz o Argon2id e o KDF no navegador. O PHP usa a extensão sodium, que é o mesmo libsodium. O gerador, no PHP, usa `random_bytes` com rejeição para não enviesar o sorteio, porque essa extensão não expõe `randombytes_uniform`. O algoritmo da senha gerada é o mesmo dos dois lados.

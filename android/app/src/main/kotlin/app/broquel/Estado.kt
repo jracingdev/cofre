@@ -23,6 +23,10 @@ data class EstadoBanco(
     val biometria: Boolean = false,
     val bloqueioSegundos: Int = 60,
     val apelido: String = "",
+    val bioComPin: Boolean = false,
+    val ultimaSenhaMestraEm: Long = 0,
+    val bootSenhaMestra: Int = Int.MIN_VALUE,
+    val falhasDesbloqueio: Int = 0,
     val itens: List<ItemGuardado> = emptyList(),
 )
 
@@ -53,6 +57,10 @@ fun EstadoBanco.paraJson(): String {
         .put("biometria", biometria)
         .put("bloqueioSegundos", bloqueioSegundos)
         .put("apelido", apelido)
+        .put("bioComPin", bioComPin)
+        .put("ultimaSenhaMestraEm", ultimaSenhaMestraEm)
+        .put("bootSenhaMestra", bootSenhaMestra)
+        .put("falhasDesbloqueio", falhasDesbloqueio)
         .put("itens", itensJson)
         .toString()
 }
@@ -92,6 +100,10 @@ fun estadoDeJson(texto: String): EstadoBanco {
         biometria = json.optBoolean("biometria"),
         bloqueioSegundos = json.optInt("bloqueioSegundos", 60),
         apelido = json.optString("apelido"),
+        bioComPin = json.optBoolean("bioComPin"),
+        ultimaSenhaMestraEm = json.optLong("ultimaSenhaMestraEm"),
+        bootSenhaMestra = json.optInt("bootSenhaMestra", Int.MIN_VALUE),
+        falhasDesbloqueio = json.optInt("falhasDesbloqueio"),
         itens = lista,
     )
 }

@@ -28,7 +28,16 @@ jobs:
         working-directory: web
         run: npm ci && npm test && npm run typecheck && npm run build
       - name: Build publicado
-        run: git diff --exit-code -- servidor/public/app
+        run: git diff --exit-code -- servidor/public/app web/BUILD-SHA256.txt
+      - name: Hash do site publicado
+        run: |
+          {
+            echo "### SHA-256 do cofre web"
+            echo "Confira o site com: scripts/conferir-web.sh"
+            echo "```"
+            cat web/BUILD-SHA256.txt
+            echo "```"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Dependências de produção
         run: |
           npm audit --omit=dev --prefix packages/cripto

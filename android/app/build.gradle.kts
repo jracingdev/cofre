@@ -12,10 +12,10 @@ android {
         applicationId = "app.broquel"
         minSdk = 28
         targetSdk = 35
-        // Sobe a cada execução do CI. O Android só atualiza por cima se o número for maior.
+        // Versão 1.1.N: N é a execução do CI. O Android só atualiza por cima se o número for maior.
         val execucao = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
-        versionCode = 100 + execucao
-        versionName = "1.0.$execucao"
+        versionCode = 10100 + execucao
+        versionName = "1.1.$execucao"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

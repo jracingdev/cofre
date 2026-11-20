@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { POLITICA } from '../politica.mjs';
@@ -37,4 +37,23 @@ html = html.replace(/<(script|link)\b([^>]*)>/gi, (completo, etiqueta, atributos
   return `<${etiqueta}${attrs} integrity="sha384-${hash}">`;
 });
 
-writeFileSync(htmlPath, html);
+// O git entrega texto com LF no servidor; o arquivo gravado aqui também.
+writeFileSync(htmlPath, html.replace(/\r\n/g, '\n'));
+
+// Hash de cada arquivo como o servidor entrega. Fica no repositório, fora do servidor,
+// para conferir o site publicado com scripts/conferir-web.sh.
+const TEXTO = /\.(html|css|js|svg|webmanifest|json|txt)$/;
+function conteudoPublicado(arquivo) {
+  const bytes = readFileSync(join(raiz, arquivo));
+  return TEXTO.test(arquivo) ? Buffer.from(bytes.toString('utf8').replace(/\r\n/g, '\n'), 'utf8') : bytes;
+}
+function listar(pasta, prefixo = '') {
+  return readdirSync(pasta, { withFileTypes: true }).flatMap((entrada) => {
+    const relativo = prefixo + entrada.name;
+    return entrada.isDirectory() ? listar(join(pasta, entrada.name), `${relativo}/`) : [relativo];
+  });
+}
+const linhas = listar(raiz)
+  .sort()
+  .map((arquivo) => `${createHash('sha256').update(conteudoPublicado(arquivo)).digest('hex')}  ${arquivo}`);
+writeFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../BUILD-SHA256.txt'), `${linhas.join('\n')}\n`);

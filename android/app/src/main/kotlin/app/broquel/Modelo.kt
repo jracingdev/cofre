@@ -5,6 +5,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.PersistableBundle
+import android.provider.Settings
+import androidx.core.content.pm.PackageInfoCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.broquel.cripto.ErroCripto
@@ -54,6 +56,11 @@ data class Ui(
     val nomeDigitado: String = "",
     val apelidoDigitado: String = "",
     val saidaSemServidor: Boolean = false,
+    val podeBiometria: Boolean = false,
+    val podePin: Boolean = false,
+    val motivoSenha: String = "",
+    val abertoComSenha: Boolean = false,
+    val versao: String = "",
 )
 
 data class LinhaItem(val id: ByteArray, val titulo: String, val usuario: String, val conflito: Boolean)
@@ -84,8 +91,10 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
                     bloqueioSegundos = estado.bloqueioSegundos,
                     identificador = identificadorDe(estado.cabecalho),
                     apelido = estado.apelido,
+                    versao = versaoDoApp(),
                 )
             }
+            atualizarDesbloqueio()
         }
     }
 
@@ -97,17 +106,21 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         }
         trabalhar {
             val (cabecalho, kit, sessao) = app.motor.criar(senha)
+            // A biometria guardada seria do cofre anterior.
+            apagarBio()
             estado = estado.copy(
                 cabecalho = cabecalho,
                 cofreId = "",
                 aparelhoId = bytesParaHex(ByteArray(16).also { SecureRandom().nextBytes(it) }),
-                biometria = false,
             )
+            estado = Desbloqueio.aoAbrirComSenha(Desbloqueio.aoDesligar(estado), System.currentTimeMillis(), bootAtual())
             app.sessao = sessao
             gravar()
             publicar {
                 copy(
                     tela = "kit",
+                    biometria = false,
+                    abertoComSenha = true,
                     kit = kit,
                     senha = "",
                     confirmacao = "",
@@ -123,38 +136,147 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         trabalhar {
             val sessao = app.motor.abrir(estado.cabecalho, senha)
             app.sessao = sessao
-            publicar { comoLista(sessao) }
+            estado = Desbloqueio.aoAbrirComSenha(estado, System.currentTimeMillis(), bootAtual())
+            gravar()
+            publicar { comoLista(sessao).copy(aviso = "", abertoComSenha = true) }
+            atualizarDesbloqueio()
             agendarBloqueio()
         }
     }
 
-    fun pedirBiometria(): Boolean = estado.biometria && guarda.temBiometria()
+    private val arquivoBio get() = app.filesDir.resolve("bio.dat")
+    private var bioCifrado: ByteArray? = null
 
     fun segredoParaBio(): ByteArray? = app.sessao?.exportarSegredo()
 
+    /** Só dá para ligar a biometria numa sessão aberta com a senha mestra. */
     fun ligarBiometria(cifraPronta: java.util.function.Consumer<javax.crypto.Cipher>) {
+        if (!_ui.value.abertoComSenha || app.sessao == null) {
+            publicar { copy(erro = "Trave e abra com a senha mestra para ligar a biometria.") }
+            return
+        }
         guarda.prepararBiometria()
         cifraPronta.accept(guarda.cifraParaEmbrulharBio())
     }
 
     fun guardarBio(cifrado: ByteArray) {
-        app.filesDir.resolve("bio.dat").writeBytes(cifrado)
-        estado = estado.copy(biometria = true)
+        arquivoBio.writeBytes(cifrado)
+        estado = estado.copy(biometria = true, bioComPin = guarda.aceitaPinDoCelular(), falhasDesbloqueio = 0)
         if (!gravarNaTela()) return
-        publicar { copy(biometria = true, aviso = "Biometria ligada.") }
+        publicar { copy(biometria = true, aviso = "Biometria ligada.", erro = "") }
+        atualizarDesbloqueio()
     }
 
-    fun abrirBio(claro: ByteArray) {
+    fun desligarBiometria() {
+        apagarBio()
+        estado = Desbloqueio.aoDesligar(estado)
+        if (!gravarNaTela()) return
+        publicar { copy(biometria = false, aviso = "Biometria desligada. Só a senha mestra abre o cofre.", erro = "") }
+        atualizarDesbloqueio()
+    }
+
+    /** Prepara a cifra para abrir bio.dat, ou devolve null quando só a senha mestra serve agora. */
+    fun cifraParaAbrirBio(): javax.crypto.Cipher? {
+        atualizarDesbloqueio()
+        if (!_ui.value.podeBiometria) return null
+        val bytes = runCatching { arquivoBio.readBytes() }.getOrNull()
+        if (bytes == null || bytes.size < 13) {
+            chaveInvalidada()
+            return null
+        }
+        return try {
+            val cifra = guarda.cifraParaAbrirBio(bytes.copyOfRange(0, 12))
+            bioCifrado = bytes.copyOfRange(12, bytes.size)
+            cifra
+        } catch (_: ChaveBioInvalidada) {
+            chaveInvalidada()
+            null
+        }
+    }
+
+    fun abrirBio(pronta: javax.crypto.Cipher) {
+        val corpo = bioCifrado ?: return
+        bioCifrado = null
+        if (Desbloqueio.motivo(estado, System.currentTimeMillis(), bootAtual()) != MotivoSenha.NENHUM) {
+            atualizarDesbloqueio()
+            return
+        }
+        val claro = try {
+            pronta.doFinal(corpo)
+        } catch (_: Exception) {
+            chaveInvalidada()
+            return
+        }
         if (claro.size < 96) {
-            publicar { copy(erro = "Não foi possível abrir com biometria.") }
+            claro.fill(0)
+            chaveInvalidada()
             return
         }
         val cab = lerCabecalho(estado.cabecalho)
         val chave = claro.copyOfRange(0, 32)
         val sk = claro.copyOfRange(32, 96)
-        app.sessao = SessaoCripto(cab.cofreId, chave, sk, cab.pk, app.motor.sodium)
-        publicar { comoLista(app.sessao!!) }
+        claro.fill(0)
+        val sessao = SessaoCripto(cab.cofreId, chave, sk, cab.pk, app.motor.sodium)
+        app.sessao = sessao
+        estado = Desbloqueio.aoAbrirComBiometria(estado)
+        gravarNaTela()
+        publicar { comoLista(sessao).copy(aviso = "", abertoComSenha = false) }
+        atualizarDesbloqueio()
         agendarBloqueio()
+    }
+
+    /** Dedo não reconhecido. */
+    fun falhaBio() {
+        estado = Desbloqueio.aoFalhar(estado)
+        gravarNaTela()
+        atualizarDesbloqueio()
+    }
+
+    /** O sistema bloqueou a biometria por excesso de tentativas. */
+    fun bloqueioDoSistema() {
+        bioCifrado = null
+        estado = Desbloqueio.aoBloquearSistema(estado)
+        gravarNaTela()
+        atualizarDesbloqueio()
+    }
+
+    private fun chaveInvalidada() {
+        bioCifrado = null
+        apagarBio()
+        estado = Desbloqueio.aoDesligar(estado)
+        gravarNaTela()
+        publicar {
+            copy(
+                biometria = false,
+                erro = "A biometria mudou neste celular (dedo ou rosto novo). Abra com a senha mestra e ligue a biometria de novo em Configurações.",
+            )
+        }
+        atualizarDesbloqueio()
+    }
+
+    private fun apagarBio() {
+        arquivoBio.delete()
+        runCatching { guarda.apagarBiometria() }
+    }
+
+    private fun atualizarDesbloqueio() {
+        val motivo = Desbloqueio.motivo(estado, System.currentTimeMillis(), bootAtual())
+        val pode = motivo == MotivoSenha.NENHUM && guarda.temBiometria() && arquivoBio.exists()
+        publicar {
+            copy(
+                podeBiometria = pode,
+                podePin = pode && estado.bioComPin && guarda.aceitaPinDoCelular(),
+                motivoSenha = motivo.texto,
+            )
+        }
+    }
+
+    private fun bootAtual(): Int =
+        Settings.Global.getInt(app.contentResolver, Settings.Global.BOOT_COUNT, -1)
+
+    private fun versaoDoApp(): String {
+        val info = app.packageManager.getPackageInfo(app.packageName, 0)
+        return "${info.versionName} (${PackageInfoCompat.getLongVersionCode(info)})"
     }
 
     fun kitGuardado() = publicar { comoLista(app.sessao!!) }
@@ -340,8 +462,11 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
             if (bytesParaHex(lerCabecalho(cab).cofreId) != id) {
                 throw ErroRede("formato_invalido", "O cabeçalho não bate com o identificador.")
             }
-            estado = estado.copy(cabecalho = cab, cofreId = id, itens = emptyList(), cursor = 0)
+            // A biometria guardada é do cofre anterior.
+            apagarBio()
+            estado = Desbloqueio.aoDesligar(estado).copy(cabecalho = cab, cofreId = id, itens = emptyList(), cursor = 0)
             gravar()
+            atualizarDesbloqueio()
             publicar { copy(tela = "desbloquear", identificador = id, aviso = "Cabeçalho recebido. Abra com a senha mestra.", erro = "") }
         }
     }
@@ -361,7 +486,8 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
     fun definirSenha(valor: String) = publicar { copy(senha = valor, erro = "") }
     fun definirConfirmacao(valor: String) = publicar { copy(confirmacao = valor) }
     fun definirEditor(valor: ConteudoLogin) = publicar { copy(editor = valor) }
-    fun ir(tela: String) = publicar { copy(tela = tela, erro = "") }
+    fun ir(tela: String) = publicar { copy(tela = tela, erro = "", aviso = "") }
+    fun limparMensagens() = publicar { copy(erro = "", aviso = "") }
 
     fun sincronizar() {
         val sessao = app.sessao ?: return
@@ -412,12 +538,12 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
     }
 
     private fun apagarDesteAparelho(aviso: String) {
-        app.filesDir.resolve("bio.dat").delete()
-        runCatching { guarda.apagarBiometria() }
+        apagarBio()
         banco.apagar()
         estado = EstadoBanco()
         ultimoToken = null
         app.travar()
+        atualizarDesbloqueio()
         publicar {
             copy(
                 tela = "inicio",
@@ -440,16 +566,35 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         Sincronizador(idNome(app.motor.sodium, sessao.cofreId))
 
     fun travarAgora() {
+        bloquear?.cancel()
         ultimoToken = null
         app.travar()
-        publicar { copy(tela = if (estado.cabecalho.isEmpty()) "inicio" else "desbloquear", itens = emptyList(), senha = "") }
+        publicar {
+            copy(
+                tela = if (estado.cabecalho.isEmpty()) "inicio" else "desbloquear",
+                itens = emptyList(),
+                senha = "",
+                editor = ConteudoLogin(),
+                senhaGerada = "",
+                abertoComSenha = false,
+            )
+        }
+        atualizarDesbloqueio()
     }
 
+    /** Ao voltar para o app o prazo, o reinício ou as falhas podem ter mudado. */
     fun emPrimeiroPlano() {
-        bloquear?.cancel()
+        if (app.sessao != null) agendarBloqueio() else atualizarDesbloqueio()
     }
 
-    fun emSegundoPlano() = agendarBloqueio()
+    fun emSegundoPlano() {
+        if (app.sessao != null) agendarBloqueio()
+    }
+
+    /** Qualquer toque reinicia a contagem de inatividade com o app aberto. */
+    fun interacao() {
+        if (app.sessao != null) agendarBloqueio()
+    }
 
     private fun agendarBloqueio() {
         bloquear?.cancel()

@@ -2,17 +2,24 @@ package app.broquel
 
 import android.os.Bundle
 import android.view.WindowManager
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ViewModelProvider
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
+    private lateinit var modelo: Modelo
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        if (::modelo.isInitialized) modelo.interacao()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
-        val modelo = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application))[Modelo::class.java]
+        modelo = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application))[Modelo::class.java]
         lifecycle.addObserver(
             LifecycleEventObserver { _, evento ->
                 when (evento) {
