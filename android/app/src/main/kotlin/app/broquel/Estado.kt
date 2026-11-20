@@ -152,3 +152,7 @@ fun conteudoDe(bytes: ByteArray): ConteudoLogin {
         conflitoDe = conflito?.ifBlank { null },
     )
 }
+
+/** Identificador digitado ou colado: ignora espaços, traços e maiúsculas. */
+fun identificadorLimpo(texto: String): String =
+    texto.lowercase().filter { it.isDigit() || it in 'a'..'f' }

@@ -450,14 +450,17 @@ class Modelo(aplicacao: Application) : AndroidViewModel(aplicacao) {
         gravarDepois()
     }
 
+    /**
+     * Guarda o texto como foi digitado. Mexer no texto a cada tecla (minúsculas, filtro) faz o teclado
+     * perder letras; a limpeza acontece em [identificadorLimpo].
+     */
     fun definirIdentificadorRemoto(valor: String) {
-        val limpo = valor.lowercase().filter { it.isDigit() || it in 'a'..'f' }.take(32)
-        publicar { copy(identificadorRemoto = limpo) }
+        publicar { copy(identificadorRemoto = valor.take(80), erro = "") }
     }
 
     fun trazerCofre() {
         trabalhar {
-            val id = _ui.value.identificadorRemoto
+            val id = identificadorLimpo(_ui.value.identificadorRemoto)
             if (!id.matches(Regex("^[0-9a-f]{32}$"))) {
                 throw ErroRede("formato_invalido", "O identificador tem 32 caracteres hexadecimais.")
             }

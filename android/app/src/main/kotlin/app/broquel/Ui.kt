@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Info
@@ -51,6 +52,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -75,11 +77,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -386,16 +390,40 @@ private fun Trazer(ui: Ui, modelo: Modelo) {
         "Use o identificador de 32 caracteres do cofre. Ele aparece em Configurações no outro celular, " +
             "ou no site, depois de abrir o cofre. Depois você abre com a mesma senha mestra.",
     )
-    Campo(ui.identificadorRemoto, modelo::definirIdentificadorRemoto, "Identificador do cofre")
+    val area = LocalClipboardManager.current
+    val limpo = identificadorLimpo(ui.identificadorRemoto)
+    OutlinedTextField(
+        ui.identificadorRemoto,
+        modelo::definirIdentificadorRemoto,
+        label = { Text("Identificador do cofre") },
+        singleLine = true,
+        textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace),
+        // Sem sugestão, correção nem maiúscula automática: o teclado não troca o que foi digitado.
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Password,
+            capitalization = KeyboardCapitalization.None,
+            autoCorrectEnabled = false,
+        ),
+        trailingIcon = {
+            IconButton(onClick = { area.getText()?.text?.let(modelo::definirIdentificadorRemoto) }) {
+                Icon(Icons.Filled.ContentPaste, contentDescription = "Colar")
+            }
+        },
+        modifier = Modifier.fillMaxWidth(),
+    )
     Text(
-        "${ui.identificadorRemoto.length} de 32 caracteres",
+        when {
+            limpo.length == 32 -> "32 de 32 caracteres. Tudo certo."
+            limpo.length > 32 -> "${limpo.length} caracteres: passou de 32. Confira o identificador."
+            else -> "${limpo.length} de 32 caracteres (0 a 9 e a até f)"
+        },
         style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = if (limpo.length > 32) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
     )
     BotaoCheio(
         "Trazer do servidor",
         modelo::trazerCofre,
-        habilitado = !ui.ocupado && ui.identificadorRemoto.length == 32,
+        habilitado = !ui.ocupado && limpo.length == 32,
         icone = Icons.Filled.Sync,
     )
 }
